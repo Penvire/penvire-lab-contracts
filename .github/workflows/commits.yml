@@ -1,0 +1,14 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-commits:
+    uses: Penvire/.github/.github/workflows/conventional-commits.yml@main
