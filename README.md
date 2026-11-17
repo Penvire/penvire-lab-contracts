@@ -17,7 +17,7 @@ Services and clients consume contracts only through published packages. Every co
 ## Related
 
 - [penvire-lab-backend](https://github.com/Penvire/penvire-lab-backend): services and lab documentation
-- [penvire-lab-client](https://github.com/Penvire/penvire-lab-client): web UI
+- [penvire-lab-clients](https://github.com/Penvire/penvire-lab-clients): web, desktop and mobile apps
 
 ## License
 
