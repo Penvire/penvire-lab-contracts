@@ -7,7 +7,7 @@
       "instructions": "Use Conventional Commits. Mark breaking changes with ! as well."
     },
     "pullRequest": {
-      "instructions": "Use a Conventional Commit as the title: it becomes the squash commit. Lead with a one-paragraph summary and include a Test plan section."
+      "instructions": "Use a Conventional Commit as the title: it becomes the squash commit and the changelog entry. Lead with a one-paragraph summary and include a Test plan section. If the PR contains more than one user-facing change, end the description with a BEGIN_COMMIT_OVERRIDE ... END_COMMIT_OVERRIDE block listing each feat and fix as its own Conventional Commit line."
     }
   }
 }
