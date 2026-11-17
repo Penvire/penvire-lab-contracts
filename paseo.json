@@ -1,0 +1,13 @@
+{
+  "metadataGeneration": {
+    "branchName": {
+      "instructions": "Prefix branches with feat/, fix/ or chore/."
+    },
+    "commitMessage": {
+      "instructions": "Use Conventional Commits. Mark breaking changes with ! as well."
+    },
+    "pullRequest": {
+      "instructions": "Use a Conventional Commit as the title: it becomes the squash commit. Lead with a one-paragraph summary and include a Test plan section."
+    }
+  }
+}
