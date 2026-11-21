@@ -25,7 +25,7 @@ Services and clients consume contracts only through published packages. Every co
 
 ## Contributing
 
-Commits must be signed and follow [Conventional Commits](https://www.conventionalcommits.org/). Pull requests are merged with a merge commit.
+Commits must be signed and follow [Conventional Commits](https://www.conventionalcommits.org/). Pull requests are squash-merged; the PR title must be a Conventional Commit.
 
 ## Security
 
