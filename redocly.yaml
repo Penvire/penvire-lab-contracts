@@ -12,3 +12,6 @@ rules:
     severity: error
     catalogue: openapi/scopes.yaml
   penvire/path-version: error
+  penvire/operation-callers:
+    severity: error
+    catalogue: openapi/workloads.yaml

@@ -9,6 +9,7 @@ OpenAPI, AsyncAPI and Avro contracts between the Penvire Lab services and client
 ```text
 openapi/<service>/openapi.yaml   one service document; one release component and one Java client each
 openapi/scopes.yaml              scope catalogue for x-penvire-scopes
+openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
 build.gradle.kts                 lint, rule tests and Java client generation into build/clients/<service>
@@ -33,6 +34,7 @@ Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/
 
 - Every operation declares `x-penvire-audience`: `api`, `service` or `protocol`; never on the path item.
 - `api` operations declare `x-penvire-scopes` from `openapi/scopes.yaml`; `protocol` operations declare none.
+- `service` operations declare `x-penvire-callers`, the workloads allowed to call them, from `openapi/workloads.yaml`; `api` and `protocol` operations declare none.
 - `api` paths start with `/v<major>/`, `service` paths with `/internal/v<major>/`; `protocol` paths are unversioned.
 - Path items stay inline in the service document; the rules read operations from `paths`.
 

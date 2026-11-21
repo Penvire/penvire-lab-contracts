@@ -33,10 +33,35 @@ paths:
     get:
       operationId: serviceOutsideInternal
       x-penvire-audience: service
+      x-penvire-callers: [engagement]
       responses: { '200': { description: OK } }
   /v1/token:
     post:
       operationId: versionedProtocol
       x-penvire-audience: protocol
       x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /internal/v1/no-callers:
+    get:
+      operationId: noCallers
+      x-penvire-audience: service
+      responses: { '200': { description: OK } }
+  /internal/v1/unknown-caller:
+    get:
+      operationId: unknownCaller
+      x-penvire-audience: service
+      x-penvire-callers: [engagment]
+      responses: { '200': { description: OK } }
+  /internal/v1/empty-callers:
+    get:
+      operationId: emptyCallers
+      x-penvire-audience: service
+      x-penvire-callers: []
+      responses: { '200': { description: OK } }
+  /v1/api-with-callers:
+    get:
+      operationId: apiWithCallers
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      x-penvire-callers: [engagement]
       responses: { '200': { description: OK } }

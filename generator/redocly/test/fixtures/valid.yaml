@@ -11,6 +11,7 @@ paths:
     get:
       operationId: listAllEngagements
       x-penvire-audience: service
+      x-penvire-callers: [engagement, evidence]
       responses: { '200': { description: OK } }
   /.well-known/openid-configuration:
     get:

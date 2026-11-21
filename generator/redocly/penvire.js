@@ -6,7 +6,6 @@ import YAML from 'yaml';
 
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const AUDIENCES = ['api', 'service', 'protocol'];
-const SCOPE_NAME = /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/;
 const PATH_PREFIX = {
   api: { pattern: /^\/v[1-9]\d*(\/|$)/, hint: '/v<major>/…' },
   service: { pattern: /^\/internal\/v[1-9]\d*(\/|$)/, hint: '/internal/v<major>/…' },
@@ -44,55 +43,82 @@ function operationAudience() {
   };
 }
 
-function loadCatalogue(file) {
-  const scopes = YAML.parse(fs.readFileSync(path.resolve(file), 'utf8'))?.scopes ?? {};
-  const invalid = Object.keys(scopes).filter((name) => !SCOPE_NAME.test(name));
+/** Reads the names under `key` in a catalogue file and rejects malformed ones. */
+function loadCatalogue(file, key, namePattern, nameHint) {
+  const entries = YAML.parse(fs.readFileSync(path.resolve(file), 'utf8'))?.[key] ?? {};
+  const invalid = Object.keys(entries).filter((name) => !namePattern.test(name));
   if (invalid.length) {
-    throw new Error(`${file}: scope names must look like service:capability, got ${invalid.join(', ')}`);
+    throw new Error(`${file}: ${key} names must look like ${nameHint}, got ${invalid.join(', ')}`);
   }
-  return new Set(Object.keys(scopes));
+  return new Set(Object.keys(entries));
 }
 
-function operationScopes({ catalogue }) {
-  const known = loadCatalogue(catalogue);
-  return {
-    Paths(paths, { report, location }) {
-      eachOperation(paths, (route, method, operation) => {
-        const at = location.child([route, method]);
-        const audience = operation['x-penvire-audience'];
-        const scopes = operation['x-penvire-scopes'];
-        if (scopes === undefined) {
-          if (audience === 'api') {
-            report({ message: 'api operations must declare x-penvire-scopes.', location: at.key() });
-          }
-          return;
-        }
-        if (audience === 'protocol') {
-          report({
-            message: 'protocol operations must not declare x-penvire-scopes; the protocol defines its own authorization.',
-            location: at.child('x-penvire-scopes').key(),
-          });
-          return;
-        }
-        if (!Array.isArray(scopes) || scopes.length === 0 || new Set(scopes).size !== scopes.length) {
-          report({
-            message: 'x-penvire-scopes must be a non-empty list of unique scope names.',
-            location: at.child('x-penvire-scopes'),
-          });
-          return;
-        }
-        scopes.forEach((scope, index) => {
-          if (!known.has(scope)) {
-            report({
-              message: `Unknown scope ${scope}; add it to ${catalogue}.`,
-              location: at.child(['x-penvire-scopes', index]),
-            });
-          }
-        });
-      });
-    },
+/** Checks one operation's list against the audience rules and the catalogue. */
+function checkList(spec, { known, catalogue }, operation, at, report) {
+  const { extension, key, required, forbidden, forbiddenReason } = spec;
+  const audience = operation['x-penvire-audience'];
+  const names = operation[extension];
+  if (names === undefined) {
+    if (required.includes(audience)) {
+      report({ message: `${audience} operations must declare ${extension}.`, location: at.key() });
+    }
+    return;
+  }
+  if (forbidden.includes(audience)) {
+    report({
+      message: `${audience} operations must not declare ${extension}; ${forbiddenReason}`,
+      location: at.child(extension).key(),
+    });
+    return;
+  }
+  if (!Array.isArray(names) || names.length === 0 || new Set(names).size !== names.length) {
+    report({ message: `${extension} must be a non-empty list of unique names.`, location: at.child(extension) });
+    return;
+  }
+  names
+    .map((name, index) => [name, index])
+    .filter(([name]) => !known.has(name))
+    .forEach(([name, index]) => report({
+      message: `Unknown ${key} entry ${name}; add it to ${catalogue}.`,
+      location: at.child([extension, index]),
+    }));
+}
+
+/**
+ * Builds a rule for an operation-level list of catalogue names.
+ * `required` audiences must declare a non-empty list; `forbidden` audiences must not declare one.
+ */
+function catalogueListRule(spec) {
+  return ({ catalogue }) => {
+    const known = loadCatalogue(catalogue, spec.key, spec.namePattern, spec.nameHint);
+    return {
+      Paths(paths, { report, location }) {
+        eachOperation(paths, (route, method, operation) =>
+          checkList(spec, { known, catalogue }, operation, location.child([route, method]), report));
+      },
+    };
   };
 }
+
+const operationScopes = catalogueListRule({
+  extension: 'x-penvire-scopes',
+  key: 'scopes',
+  namePattern: /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/,
+  nameHint: 'service:capability',
+  required: ['api'],
+  forbidden: ['protocol'],
+  forbiddenReason: 'the protocol defines its own authorization.',
+});
+
+const operationCallers = catalogueListRule({
+  extension: 'x-penvire-callers',
+  key: 'workloads',
+  namePattern: /^[a-z][a-z0-9-]*$/,
+  nameHint: 'a lowercase workload name',
+  required: ['service'],
+  forbidden: ['api', 'protocol'],
+  forbiddenReason: 'only service operations restrict their callers (api operations are reached through the BFF and the gateway).',
+});
 
 function pathVersion() {
   return {
@@ -119,6 +145,7 @@ export default function penvirePlugin() {
       oas3: {
         'operation-audience': operationAudience,
         'operation-scopes': operationScopes,
+        'operation-callers': operationCallers,
         'path-version': pathVersion,
       },
     },

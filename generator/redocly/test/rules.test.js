@@ -23,6 +23,10 @@ test('each broken rule is reported at the offending operation', () => {
   assert.deepEqual(lint('invalid.yaml'), [
     'penvire/operation-audience #/paths/~1v1~1no-audience/get',
     'penvire/operation-audience #/paths/~1v1~1no-audience/x-penvire-audience',
+    'penvire/operation-callers #/paths/~1internal~1v1~1empty-callers/get/x-penvire-callers',
+    'penvire/operation-callers #/paths/~1internal~1v1~1no-callers/get',
+    'penvire/operation-callers #/paths/~1internal~1v1~1unknown-caller/get/x-penvire-callers/0',
+    'penvire/operation-callers #/paths/~1v1~1api-with-callers/get/x-penvire-callers',
     'penvire/operation-scopes #/paths/~1v1~1empty-scopes/get/x-penvire-scopes',
     'penvire/operation-scopes #/paths/~1v1~1no-scopes/get',
     'penvire/operation-scopes #/paths/~1v1~1token/post/x-penvire-scopes',
