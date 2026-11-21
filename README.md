@@ -2,7 +2,7 @@
 
 > **Penvire Lab** is a learning project. It never runs in production and never holds real data. Lab and product share no code.
 
-**Status:** not started yet.
+**Status:** in progress.
 
 OpenAPI, AsyncAPI and Avro contracts between the Penvire Lab services and clients.
 
@@ -25,7 +25,7 @@ Services and clients consume contracts only through published packages. Every co
 
 ## Contributing
 
-Commits must be signed and follow [Conventional Commits](https://www.conventionalcommits.org/). Pull requests are merged with a merge commit.
+Commits must be signed and follow [Conventional Commits](https://www.conventionalcommits.org/). Pull requests are squash-merged; the PR title must be a Conventional Commit.
 
 ## Security
 
