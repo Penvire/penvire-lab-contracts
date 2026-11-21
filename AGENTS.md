@@ -45,6 +45,7 @@ Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/
 - Commits are GPG-signed; `main` rejects unsigned commits.
 - PR body: a one-paragraph summary, then a `## Test plan` section.
 - Releases are managed by release-please. Do not bump versions or edit `CHANGELOG.md` by hand.
+- Everything starts at 0.x. Below 1.0.0, `feat` and `fix` bump the patch and a breaking change (`!`) bumps the minor, so a new minor always means breaking. Leaving 0.x is deliberate: a commit with a `Release-As: 1.0.0` footer (ADR 0001 in penvire-lab-backend).
 - The PR title becomes the changelog entry. Keep one user-facing change per PR. If a PR contains several, list every `feat` and `fix` on its own line in the PR description, between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`; release-please uses that block instead of the title.
 
 ## Agent docs
