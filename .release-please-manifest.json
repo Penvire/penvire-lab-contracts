@@ -1,5 +1,5 @@
 {
-  "openapi/identity": "0.0.0",
+  "openapi/identity": "0.1.0",
   "openapi/tenant": "0.0.0",
   "openapi/engagement": "0.0.0",
   "openapi/evidence": "0.0.0",
