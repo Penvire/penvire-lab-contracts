@@ -18,3 +18,9 @@ paths:
       operationId: discovery
       x-penvire-audience: protocol
       responses: { '200': { description: OK } }
+  /v2/t/{tenantId}/engagements:
+    get:
+      operationId: listEngagementsV2
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }

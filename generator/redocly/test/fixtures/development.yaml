@@ -1,0 +1,21 @@
+openapi: 3.1.0
+info: { title: In development, version: 0.3.0 }
+paths:
+  /v1/t/{tenantId}/engagements:
+    get:
+      operationId: listEngagements
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /v2/t/{tenantId}/engagements:
+    get:
+      operationId: listEngagementsV2
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /internal/v2/engagements:
+    get:
+      operationId: listAllEngagementsV2
+      x-penvire-audience: service
+      x-penvire-callers: [engagement]
+      responses: { '200': { description: OK } }

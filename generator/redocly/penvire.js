@@ -7,8 +7,8 @@ import YAML from 'yaml';
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
 const AUDIENCES = ['api', 'service', 'protocol'];
 const PATH_PREFIX = {
-  api: { pattern: /^\/v[1-9]\d*(\/|$)/, hint: '/v<major>/…' },
-  service: { pattern: /^\/internal\/v[1-9]\d*(\/|$)/, hint: '/internal/v<major>/…' },
+  api: { pattern: /^\/v([1-9]\d*)(\/|$)/, hint: '/v<major>/…' },
+  service: { pattern: /^\/internal\/v([1-9]\d*)(\/|$)/, hint: '/internal/v<major>/…' },
 };
 const VERSIONED_OR_INTERNAL = /^\/(internal(\/|$)|v\d+(\/|$))/;
 
@@ -122,13 +122,19 @@ const operationCallers = catalogueListRule({
 
 function pathVersion() {
   return {
-    Paths(paths, { report, location }) {
-      eachOperation(paths, (route, method, operation) => {
+    // Root, not Paths: the 0.x check needs info.version.
+    Root(document, { report, location }) {
+      const inDevelopment = String(document.info?.version ?? '').startsWith('0.');
+      eachOperation(document.paths, (route, method, operation) => {
         const audience = operation['x-penvire-audience'];
-        const at = location.child([route, method]).key();
+        const at = location.child(['paths', route, method]).key();
         const expected = PATH_PREFIX[audience];
-        if (expected && !expected.pattern.test(route)) {
+        const match = expected?.pattern.exec(route);
+        if (expected && !match) {
           report({ message: `${audience} operations must live under ${expected.hint}.`, location: at });
+        }
+        if (match && inDevelopment && match[1] !== '1') {
+          report({ message: 'Contracts below 1.0.0 stay at path major /v1 and change in place.', location: at });
         }
         if (audience === 'protocol' && VERSIONED_OR_INTERNAL.test(route)) {
           report({ message: 'protocol operations use unversioned, public paths.', location: at });

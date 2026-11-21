@@ -35,7 +35,7 @@ Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/
 - Every operation declares `x-penvire-audience`: `api`, `service` or `protocol`; never on the path item.
 - `api` operations declare `x-penvire-scopes` from `openapi/scopes.yaml`; `protocol` operations declare none.
 - `service` operations declare `x-penvire-callers`, the workloads allowed to call them, from `openapi/workloads.yaml`; `api` and `protocol` operations declare none.
-- `api` paths start with `/v<major>/`, `service` paths with `/internal/v<major>/`; `protocol` paths are unversioned.
+- `api` paths start with `/v<major>/`, `service` paths with `/internal/v<major>/`; `protocol` paths are unversioned. Below contract version 1.0.0, the path major is always `/v1`.
 - Path items stay inline in the service document; the rules read operations from `paths`.
 
 ## Rules

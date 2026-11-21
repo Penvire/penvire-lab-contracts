@@ -36,3 +36,10 @@ test('each broken rule is reported at the offending operation', () => {
     'penvire/path-version #/paths/~1v1~1token/post',
   ]);
 });
+
+test('contracts below 1.0.0 stay at path major /v1', () => {
+  assert.deepEqual(lint('development.yaml'), [
+    'penvire/path-version #/paths/~1internal~1v2~1engagements/get',
+    'penvire/path-version #/paths/~1v2~1t~1{tenantId}~1engagements/get',
+  ]);
+});
