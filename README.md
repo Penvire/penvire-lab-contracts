@@ -10,9 +10,29 @@ OpenAPI, AsyncAPI and Avro contracts between the Penvire Lab services and client
 
 - OpenAPI definitions for every lab service, each operation declaring its audience, callers and scopes
 - AsyncAPI and Avro schemas for events
-- The pipeline that validates contracts and publishes them as versioned packages (planned: Maven group `dev.penvire.lab`, npm scope `@penvire-lab`)
+- The pipeline that validates contracts and publishes them as versioned packages (Maven group `dev.penvire.lab`; npm scope `@penvire-lab` planned)
 
 Services and clients consume contracts only through published packages. Every contract change bumps its version.
+
+## Using the packages
+
+Released contracts are published to the [Forgejo package registry](https://git.qf0xb.de/penvire/-/packages), readable without authentication:
+
+```kotlin
+repositories {
+    maven("https://git.qf0xb.de/api/packages/penvire/maven")
+}
+
+dependencies {
+    // Server-to-server client for another service.
+    implementation("dev.penvire.lab:identity-client:0.1.0")
+}
+```
+
+| Artifact | Contents |
+| --- | --- |
+| `dev.penvire.lab:<service>-client` | MicroProfile REST client (`@RegisterRestClient(configKey = "<service>")`) with sources |
+| `dev.penvire.lab:<service>-openapi@yaml` | The service's OpenAPI document as one bundled file, for generating its server interfaces |
 
 ## Related
 

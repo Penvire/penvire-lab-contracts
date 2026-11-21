@@ -104,6 +104,49 @@ subprojects {
         isReproducibleFileOrder = true
     }
 
+    // One self-contained file for the service's own server generation; Redocly inlines external refs.
+    val bundleContract by tasks.registering(Exec::class) {
+        description = "Bundles the $service document into a single file."
+        dependsOn(":pnpmInstall")
+        val bundled = layout.buildDirectory.file("contract/$service-openapi.yaml").get().asFile
+        inputs.file(document)
+        outputs.file(bundled)
+        workingDir = rootDir
+        commandLine("pnpm", "exec", "redocly", "bundle", document.relativeTo(rootDir).path, "--output", bundled.path)
+    }
+
+    apply(plugin = "maven-publish")
+    extensions.configure<PublishingExtension> {
+        publications {
+            create<MavenPublication>("client") {
+                artifactId = project.name
+                from(components["java"])
+                pom {
+                    name = "Penvire Lab $service client"
+                    description = "MicroProfile REST client for the Penvire Lab $service service."
+                    licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+                }
+            }
+            create<MavenPublication>("contract") {
+                artifactId = "$service-openapi"
+                artifact(bundleContract.map { it.outputs.files.singleFile }) { extension = "yaml" }
+                pom {
+                    name = "Penvire Lab $service contract"
+                    description = "Bundled OpenAPI document of the Penvire Lab $service service."
+                    licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+                }
+            }
+        }
+        repositories {
+            maven {
+                name = "forgejo"
+                url = uri(providers.gradleProperty("forgejoMavenUrl").get())
+                // forgejoUsername / forgejoPassword, e.g. from ORG_GRADLE_PROJECT_* in CI.
+                if (url.scheme == "https") credentials(PasswordCredentials::class)
+            }
+        }
+    }
+
     dependencies {
         "api"(platform(rootProject.libs.quarkus.bom))
         "api"("org.eclipse.microprofile.rest.client:microprofile-rest-client-api")
