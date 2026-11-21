@@ -1,0 +1,14 @@
+plugins:
+  - ./generator/redocly/penvire.js
+
+extends:
+  - recommended
+
+rules:
+  # Protocol endpoints such as discovery have no meaningful 4xx response.
+  operation-4xx-response: off
+  penvire/operation-audience: error
+  penvire/operation-scopes:
+    severity: error
+    catalogue: openapi/scopes.yaml
+  penvire/path-version: error

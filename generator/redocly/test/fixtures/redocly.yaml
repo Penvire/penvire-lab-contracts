@@ -1,0 +1,8 @@
+plugins:
+  - ../../penvire.js
+rules:
+  penvire/operation-audience: error
+  penvire/operation-scopes:
+    severity: error
+    catalogue: scopes.yaml
+  penvire/path-version: error

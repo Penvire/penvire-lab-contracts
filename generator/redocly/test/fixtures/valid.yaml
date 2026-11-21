@@ -1,0 +1,19 @@
+openapi: 3.1.0
+info: { title: Valid, version: 1.0.0 }
+paths:
+  /v1/t/{tenantId}/engagements:
+    get:
+      operationId: listEngagements
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /internal/v1/engagements:
+    get:
+      operationId: listAllEngagements
+      x-penvire-audience: service
+      responses: { '200': { description: OK } }
+  /.well-known/openid-configuration:
+    get:
+      operationId: discovery
+      x-penvire-audience: protocol
+      responses: { '200': { description: OK } }
