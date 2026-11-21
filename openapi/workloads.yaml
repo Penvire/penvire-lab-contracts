@@ -1,0 +1,9 @@
+# Every workload that may appear in x-penvire-callers, as `<name>: description`.
+# `service` operations must list the workloads allowed to call them (ADR 0001).
+workloads:
+  identity: The lab's OpenID provider.
+  tenant: Tenants, memberships and roles.
+  engagement: Engagements.
+  evidence: Evidence collected for engagements.
+  audit: The audit trail.
+  bff: Backend for the web and desktop clients.

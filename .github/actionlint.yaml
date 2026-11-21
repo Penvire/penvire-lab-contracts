@@ -1,0 +1,5 @@
+paths:
+  .github/workflows/build.yml:
+    ignore:
+      # Remove once actionlint recognizes GitHub's Ubuntu 26.04 hosted runner.
+      - '^label "ubuntu-26\.04" is unknown\.'

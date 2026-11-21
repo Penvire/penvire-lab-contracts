@@ -1,0 +1,17 @@
+{
+  "name": "penvire-lab-contract-tools",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.9.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "redocly lint openapi/*/openapi.yaml",
+    "test": "node --test generator/redocly/test/*.test.js"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.82.0",
+    "yaml": "2.9.1"
+  }
+}
