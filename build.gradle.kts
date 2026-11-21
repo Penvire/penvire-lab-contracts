@@ -23,17 +23,17 @@ val lintContracts by tasks.registering(Exec::class) {
     commandLine(listOf("pnpm", "exec", "redocly", "lint") + serviceDocuments.files.sorted().map { it.relativeTo(projectDir).path })
 }
 
-val testLintRules by tasks.registering(Exec::class) {
-    description = "Tests the Penvire Redocly rules against fixtures."
+val testContractTools by tasks.registering(Exec::class) {
+    description = "Tests the lint rules and the breaking-change check."
     group = "verification"
     dependsOn(pnpmInstall)
-    inputs.files(fileTree("generator/redocly"))
+    inputs.files(fileTree("generator"))
     outputs.upToDateWhen { true }
     commandLine("pnpm", "test")
 }
 
 tasks.check {
-    dependsOn(lintContracts, testLintRules)
+    dependsOn(lintContracts, testContractTools)
 }
 
 /** Reads info.version, which release-please maintains, from a service document. */

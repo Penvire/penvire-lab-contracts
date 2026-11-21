@@ -12,12 +12,13 @@ openapi/scopes.yaml              scope catalogue for x-penvire-scopes
 openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
+generator/compat/                breaking-change check and the pinned openapi-changes version
 build.gradle.kts                 lint, rule tests and Java client generation into build/clients/<service>
 ```
 
 ## Development environment
 
-Enter the environment with `devenv shell`, or run `direnv allow` once. It provides Java 25, Gradle 9, Node 24, pnpm and openapi-changes. Always run tools through it.
+Enter the environment with `devenv shell`, or run `direnv allow` once. It provides Java 25, Gradle 9, Node 24, pnpm and openapi-changes. Always run tools through it. openapi-changes is the release binary pinned by SHA-256 in `generator/compat/openapi-changes.json`; CI installs it from the same file, so upgrade it there.
 
 Git hooks run automatically: a commit-msg hook rejects messages that are not Conventional Commits (the same rule as CI), and actionlint checks workflow files.
 
@@ -25,6 +26,7 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 
 - `./gradlew build`: Redocly lint of every service document, the lint-rule tests, and generating and compiling each `<service>-client`. CI runs the same command.
 - `pnpm run lint` and `pnpm test`: the Node half on its own.
+- `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
 
 A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
 

@@ -1,0 +1,9 @@
+{
+  "version": "0.4.4",
+  "sha256": {
+    "x86_64-linux": "9316c7fbb9bd62ee794ffe07ae97aee43ea4f483226bbb4cf9d07f658439883a",
+    "aarch64-linux": "0ed4b378beecd3f49e5dbdc49cb2ed2503e98aa95eb9b4ecf921173fa7fcb775",
+    "x86_64-darwin": "25821b5747c5b507238839467b1c07855422c4de5f7f94503178dcc65aa89cad",
+    "aarch64-darwin": "bacac2a2292716d75792621ef137fdf388e7898ffd31044301dbfd0c2fd8c0a3"
+  }
+}
