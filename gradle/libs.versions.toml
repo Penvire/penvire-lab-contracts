@@ -1,0 +1,10 @@
+[versions]
+# Same Quarkus as penvire-lab-backend, so generated clients match the services' REST stack.
+quarkus = "3.40.1"
+openapi-generator = "7.27.0"
+
+[libraries]
+quarkus-bom = { module = "io.quarkus.platform:quarkus-bom", version.ref = "quarkus" }
+
+[plugins]
+openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }

@@ -1,0 +1,67 @@
+openapi: 3.1.0
+info: { title: Invalid, version: 1.0.0 }
+paths:
+  /v1/no-audience:
+    x-penvire-audience: api
+    get:
+      operationId: noAudience
+      responses: { '200': { description: OK } }
+  /v1/no-scopes:
+    get:
+      operationId: noScopes
+      x-penvire-audience: api
+      responses: { '200': { description: OK } }
+  /v1/unknown-scope:
+    get:
+      operationId: unknownScope
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:write]
+      responses: { '200': { description: OK } }
+  /v1/empty-scopes:
+    get:
+      operationId: emptyScopes
+      x-penvire-audience: api
+      x-penvire-scopes: []
+      responses: { '200': { description: OK } }
+  /engagements:
+    get:
+      operationId: unversionedApi
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /v1/internal-wrong:
+    get:
+      operationId: serviceOutsideInternal
+      x-penvire-audience: service
+      x-penvire-callers: [engagement]
+      responses: { '200': { description: OK } }
+  /v1/token:
+    post:
+      operationId: versionedProtocol
+      x-penvire-audience: protocol
+      x-penvire-scopes: [engagement:read]
+      responses: { '200': { description: OK } }
+  /internal/v1/no-callers:
+    get:
+      operationId: noCallers
+      x-penvire-audience: service
+      responses: { '200': { description: OK } }
+  /internal/v1/unknown-caller:
+    get:
+      operationId: unknownCaller
+      x-penvire-audience: service
+      x-penvire-callers: [engagment]
+      responses: { '200': { description: OK } }
+  /internal/v1/empty-callers:
+    get:
+      operationId: emptyCallers
+      x-penvire-audience: service
+      x-penvire-callers: []
+      responses: { '200': { description: OK } }
+  /v1/api-with-callers:
+    get:
+      operationId: apiWithCallers
+      x-penvire-audience: api
+      x-penvire-scopes: [engagement:read]
+      x-penvire-callers: [engagement]
+      responses: { '200': { description: OK } }

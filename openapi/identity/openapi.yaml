@@ -1,0 +1,142 @@
+openapi: 3.1.0
+info:
+  title: Penvire Lab Identity
+  version: 0.0.0
+  description: >-
+    The lab's own OpenID provider. These endpoints let clients and services
+    discover Identity's configuration and the keys that verify its tokens.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: /
+    description: Relative to the host that serves Identity.
+tags:
+  - name: Discovery
+    description: OpenID Connect discovery and token verification keys.
+paths:
+  /.well-known/openid-configuration:
+    get:
+      operationId: getOpenIdConfiguration
+      summary: Get the OpenID provider configuration
+      description: OpenID Connect Discovery 1.0 and RFC 8414 provider metadata.
+      tags: [Discovery]
+      x-penvire-audience: protocol
+      security: []
+      responses:
+        '200':
+          description: Provider metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenIdConfiguration'
+  /jwks:
+    get:
+      operationId: getJwks
+      summary: Get the token verification keys
+      description: >-
+        RFC 7517 JSON Web Key Set with the public keys that verify Identity's
+        tokens. Verifiers select a key by the token's `kid` header.
+      tags: [Discovery]
+      x-penvire-audience: protocol
+      security: []
+      responses:
+        '200':
+          description: The current verification keys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwkSet'
+components:
+  schemas:
+    OpenIdConfiguration:
+      type: object
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+        - jwks_uri
+        - response_types_supported
+        - subject_types_supported
+        - id_token_signing_alg_values_supported
+      properties:
+        issuer:
+          type: string
+          format: uri
+          description: Issuer identifier; equals the `iss` claim of every token Identity issues.
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+        dpop_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+    JwkSet:
+      type: object
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/Jwk'
+    Jwk:
+      type: object
+      description: >-
+        A public verification key. Readers ignore members they do not know.
+      required: [kty, kid, alg]
+      properties:
+        kty:
+          type: string
+          description: Key type, for example `AKP` for ML-DSA or `RSA`.
+        kid:
+          type: string
+          description: Key ID, matched against the token's `kid` header.
+        alg:
+          type: string
+          description: Signature algorithm, for example `ML-DSA-65` or `RS256`.
+        use:
+          type: string
+          description: Always `sig`.
+        pub:
+          type: string
+          description: Base64url public key for `AKP` keys.
+        'n':
+          type: string
+          description: Base64url RSA modulus.
+        e:
+          type: string
+          description: Base64url RSA public exponent.

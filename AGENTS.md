@@ -7,9 +7,12 @@ OpenAPI, AsyncAPI and Avro contracts between the Penvire Lab services and client
 ## Repository map
 
 ```text
-openapi/<service>/openapi.yaml   one release component per service
+openapi/<service>/openapi.yaml   one service document; one release component and one Java client each
+openapi/scopes.yaml              scope catalogue for x-penvire-scopes
+openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
-generator/                       validation, compatibility checks, code generation
+generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
+build.gradle.kts                 lint, rule tests and Java client generation into build/clients/<service>
 ```
 
 ## Development environment
@@ -18,7 +21,22 @@ Enter the environment with `devenv shell`, or run `direnv allow` once. It provid
 
 Git hooks run automatically: a commit-msg hook rejects messages that are not Conventional Commits (the same rule as CI), and actionlint checks workflow files.
 
-No build yet. Validation and publishing scripts arrive with the first contract.
+### Building
+
+- `./gradlew build`: Redocly lint of every service document, the lint-rule tests, and generating and compiling each `<service>-client`. CI runs the same command.
+- `pnpm run lint` and `pnpm test`: the Node half on its own.
+
+A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
+
+### Contract rules
+
+Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/penvire.js`:
+
+- Every operation declares `x-penvire-audience`: `api`, `service` or `protocol`; never on the path item.
+- `api` operations declare `x-penvire-scopes` from `openapi/scopes.yaml`; `protocol` operations declare none.
+- `service` operations declare `x-penvire-callers`, the workloads allowed to call them, from `openapi/workloads.yaml`; `api` and `protocol` operations declare none.
+- `api` paths start with `/v<major>/`, `service` paths with `/internal/v<major>/`; `protocol` paths are unversioned. Below contract version 1.0.0, the path major is always `/v1`.
+- Path items stay inline in the service document; the rules read operations from `paths`.
 
 ## Rules
 
