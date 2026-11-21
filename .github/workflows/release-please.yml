@@ -80,3 +80,105 @@ jobs:
             exit 0
           fi
           ./gradlew ":${service}-client:publishAllPublicationsToForgejoRepository" --console=plain
+
+  # Rebuilds the merged public API from every service's last release and publishes it
+  # when it differs from the last published one (ADR 0001).
+  public-api:
+    name: Publish public-api
+    needs: [release-please, publish]
+    if: needs.release-please.outputs.paths_released != '' && needs.release-please.outputs.paths_released != '[]'
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Release tags select each service's released document.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        run: corepack enable pnpm
+
+      # Same pin as devenv.nix: generator/compat/openapi-changes.json.
+      - name: Install openapi-changes
+        run: |
+          version=$(jq -r .version generator/compat/openapi-changes.json)
+          sha256=$(jq -r '.sha256["x86_64-linux"]' generator/compat/openapi-changes.json)
+          archive="$RUNNER_TEMP/openapi-changes.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/pb33f/openapi-changes/releases/download/v${version}/openapi-changes_${version}_linux_x86_64.tar.gz"
+          echo "${sha256}  ${archive}" | sha256sum --check --strict -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/bin" openapi-changes
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+
+      - name: Install contract tools
+        run: pnpm install --frozen-lockfile
+
+      - name: Build from released contracts
+        run: node generator/public-api/build.mjs released
+
+      - name: Decide the version
+        id: version
+        run: node generator/public-api/release.mjs
+
+      - name: Package @penvire-lab/api-client
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: ./gradlew packageApiClient -x buildPublicApi -PpublicApiVersion="$VERSION" --console=plain
+
+      # npm first, Maven last: the Maven artifact is the baseline for the next version,
+      # so a failed run is retried in full and skips what is already uploaded.
+      - name: Publish to Forgejo
+        if: steps.version.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          ORG_GRADLE_PROJECT_forgejoUsername: ${{ vars.FORGEJO_USER }}
+          ORG_GRADLE_PROJECT_forgejoPassword: ${{ secrets.FORGEJO_TOKEN }}
+        run: |
+          maven=$(sed -n 's/^forgejoMavenUrl=//p' gradle.properties)
+          npm_registry="${maven%/maven}/npm/"
+          if curl -fsS "${npm_registry}@penvire-lab%2Fapi-client" | jq -e --arg v "$VERSION" '.versions[$v]' > /dev/null; then
+            echo "@penvire-lab/api-client ${VERSION} is already published."
+          else
+            npmrc="$RUNNER_TEMP/.npmrc"
+            # npm expands the variable itself, so the token is never written to disk.
+            printf "//%s:_authToken=\${FORGEJO_TOKEN}\n" "${npm_registry#https://}" > "$npmrc"
+            npm publish build/public-api/npm/*.tgz --registry "$npm_registry" --userconfig "$npmrc"
+          fi
+          ./gradlew publishPublicApiPublicationToForgejoRepository -PpublicApiVersion="$VERSION" --console=plain
+
+  # release-please sets `autorelease: tagged`; this marks the release PR once its packages are uploaded.
+  label-published:
+    name: Label release PR
+    needs: [release-please, publish]
+    if: needs.release-please.outputs.paths_released != '' && needs.release-please.outputs.paths_released != '[]'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Add autorelease published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh label create "autorelease: published" --repo "$REPO" --color ededed \
+            --description "Release PR whose packages are on Forgejo" --force
+          for pr in $(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[].number'); do
+            gh pr edit "$pr" --repo "$REPO" --add-label "autorelease: published"
+          done

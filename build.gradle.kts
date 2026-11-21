@@ -2,7 +2,15 @@ import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
     base
+    `maven-publish`
     alias(libs.plugins.openapi.generator) apply false
+}
+
+/** The Forgejo Maven registry; forgejoUsername / forgejoPassword come from ORG_GRADLE_PROJECT_* in CI. */
+fun RepositoryHandler.forgejo(project: Project) = maven {
+    name = "forgejo"
+    url = project.uri(project.providers.gradleProperty("forgejoMavenUrl").get())
+    if (url.scheme == "https") credentials(PasswordCredentials::class)
 }
 
 val serviceDocuments = fileTree("openapi") { include("*/openapi.yaml") }
@@ -32,8 +40,61 @@ val testContractTools by tasks.registering(Exec::class) {
     commandLine("pnpm", "test")
 }
 
+val publicApiDir = layout.buildDirectory.dir("public-api")
+
+val buildPublicApi by tasks.registering(Exec::class) {
+    description = "Merges every api operation into build/public-api/public-api.yaml (-PpublicApiSource=head|released)."
+    group = "build"
+    dependsOn(pnpmInstall)
+    inputs.files(serviceDocuments, fileTree("generator"))
+    outputs.upToDateWhen { false }
+    commandLine("node", "generator/public-api/build.mjs", providers.gradleProperty("publicApiSource").getOrElse("head"))
+}
+
+val generateApiClient by tasks.registering(GenerateTask::class) {
+    description = "Generates the @penvire-lab/api-client sources from public-api.yaml."
+    dependsOn(buildPublicApi)
+    generatorName = "typescript-fetch"
+    inputSpec = publicApiDir.map { it.file("public-api.yaml") }
+    outputDir = publicApiDir.map { it.dir("ts") }
+    cleanupOutput = true
+    configOptions = mapOf(
+        "npmName" to "@penvire-lab/api-client",
+        "supportsES6" to "true",
+        // Explicit .js imports so the compiled ESM runs in Node as well as in bundlers.
+        "importFileExtension" to ".js",
+        "hideGenerationTimestamp" to "true",
+    )
+}
+
+val packageApiClient by tasks.registering(Exec::class) {
+    description = "Compiles and packs @penvire-lab/api-client into build/public-api/npm (-PpublicApiVersion=…)."
+    group = "build"
+    dependsOn(generateApiClient)
+    outputs.upToDateWhen { false }
+    commandLine("node", "generator/public-api/package-client.mjs", providers.gradleProperty("publicApiVersion").getOrElse("0.0.0"))
+}
+
 tasks.check {
-    dependsOn(lintContracts, testContractTools)
+    dependsOn(lintContracts, testContractTools, packageApiClient)
+}
+
+// Uploads an already built and versioned public-api.yaml; the release workflow builds it first.
+publishing {
+    publications {
+        create<MavenPublication>("publicApi") {
+            groupId = "dev.penvire.lab"
+            artifactId = "public-api"
+            version = providers.gradleProperty("publicApiVersion").getOrElse("0.0.0")
+            artifact(publicApiDir.map { it.file("public-api.yaml") }) { extension = "yaml" }
+            pom {
+                name = "Penvire Lab public API"
+                description = "Every api operation of every released Penvire Lab service, merged."
+                licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+            }
+        }
+    }
+    repositories { forgejo(project) }
 }
 
 /** Reads info.version, which release-please maintains, from a service document. */
@@ -137,14 +198,7 @@ subprojects {
                 }
             }
         }
-        repositories {
-            maven {
-                name = "forgejo"
-                url = uri(providers.gradleProperty("forgejoMavenUrl").get())
-                // forgejoUsername / forgejoPassword, e.g. from ORG_GRADLE_PROJECT_* in CI.
-                if (url.scheme == "https") credentials(PasswordCredentials::class)
-            }
-        }
+        repositories { forgejo(project) }
     }
 
     dependencies {
