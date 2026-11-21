@@ -8,11 +8,13 @@
   },
   "scripts": {
     "lint": "redocly lint openapi/*/openapi.yaml",
-    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js",
+    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js generator/public-api/test/*.test.js",
+    "public-api": "node generator/public-api/build.mjs",
     "breaking": "node generator/compat/breaking.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "2.82.0",
+    "typescript": "7.0.2",
     "yaml": "2.9.1"
   }
 }

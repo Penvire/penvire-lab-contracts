@@ -13,7 +13,9 @@ openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
 generator/compat/                breaking-change check and the pinned openapi-changes version
-build.gradle.kts                 lint, rule tests and Java client generation into build/clients/<service>
+generator/public-api/            merged public API: merge, diff-based versioning, @penvire-lab/api-client packaging
+generator/lib/                   helpers shared by the scripts
+build.gradle.kts                 lint, tests, Java clients (build/clients/<service>) and public-api with its TS client (build/public-api)
 ```
 
 ## Development environment
@@ -24,7 +26,7 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 
 ### Building
 
-- `./gradlew build`: Redocly lint of every service document, the lint-rule tests, and generating and compiling each `<service>-client`. CI runs the same command.
+- `./gradlew build`: Redocly lint of every service document, the script tests, generating and compiling each `<service>-client`, and building public-api from the working tree with `@penvire-lab/api-client` compiled and packed. CI runs the same command.
 - `pnpm run lint` and `pnpm test`: the Node half on its own.
 - `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
 
@@ -32,7 +34,9 @@ A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`.
 
 ### Publishing
 
-Merging a release PR publishes that service's `<service>-client` and `<service>-openapi` to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo`.
+Merging a release PR publishes that service's `<service>-client` and `<service>-openapi` to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded.
+
+After that, the `public-api` job merges the `api` operations of every service at its last release tag (`node generator/public-api/build.mjs released`). It compares the result with the last published `dev.penvire.lab:public-api` on Forgejo, which is the baseline, and versions it from the diff (`release.mjs`; 0.x rules as for services). If anything changed, it publishes `@penvire-lab/api-client` to Forgejo npm and then `public-api` (YAML) to Forgejo Maven. Settings such as the gateway URL live in `generator/public-api/config.yaml`. Finally, `label-published` adds `autorelease: published` to the release PR. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo`.
 
 ### Contract rules
 

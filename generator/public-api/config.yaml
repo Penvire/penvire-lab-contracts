@@ -1,0 +1,9 @@
+# Settings for the merged public API (ADRs 0001 and 0002 in penvire-lab-backend).
+title: Penvire Lab public API
+description: >-
+  Every `api` operation of every released Penvire Lab service, reached through
+  the public API gateway. Authenticate with an OAuth access token (bound to a
+  client key with DPoP) or an API token.
+serverUrl: https://api.lab.penvire.com
+# Identity's discovery document, served through the gateway as a protocol path.
+openIdConnectUrl: https://api.lab.penvire.com/.well-known/openid-configuration
