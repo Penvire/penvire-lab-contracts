@@ -30,6 +30,10 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 
 A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
 
+### Publishing
+
+Merging a release PR publishes that service's `<service>-client` and `<service>-openapi` to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo`.
+
 ### Contract rules
 
 Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/penvire.js`:
