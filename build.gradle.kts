@@ -23,17 +23,17 @@ val lintContracts by tasks.registering(Exec::class) {
     commandLine(listOf("pnpm", "exec", "redocly", "lint") + serviceDocuments.files.sorted().map { it.relativeTo(projectDir).path })
 }
 
-val testLintRules by tasks.registering(Exec::class) {
-    description = "Tests the Penvire Redocly rules against fixtures."
+val testContractTools by tasks.registering(Exec::class) {
+    description = "Tests the lint rules and the breaking-change check."
     group = "verification"
     dependsOn(pnpmInstall)
-    inputs.files(fileTree("generator/redocly"))
+    inputs.files(fileTree("generator"))
     outputs.upToDateWhen { true }
     commandLine("pnpm", "test")
 }
 
 tasks.check {
-    dependsOn(lintContracts, testLintRules)
+    dependsOn(lintContracts, testContractTools)
 }
 
 /** Reads info.version, which release-please maintains, from a service document. */
@@ -102,6 +102,49 @@ subprojects {
     tasks.withType<AbstractArchiveTask>().configureEach {
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
+    }
+
+    // One self-contained file for the service's own server generation; Redocly inlines external refs.
+    val bundleContract by tasks.registering(Exec::class) {
+        description = "Bundles the $service document into a single file."
+        dependsOn(":pnpmInstall")
+        val bundled = layout.buildDirectory.file("contract/$service-openapi.yaml").get().asFile
+        inputs.file(document)
+        outputs.file(bundled)
+        workingDir = rootDir
+        commandLine("pnpm", "exec", "redocly", "bundle", document.relativeTo(rootDir).path, "--output", bundled.path)
+    }
+
+    apply(plugin = "maven-publish")
+    extensions.configure<PublishingExtension> {
+        publications {
+            create<MavenPublication>("client") {
+                artifactId = project.name
+                from(components["java"])
+                pom {
+                    name = "Penvire Lab $service client"
+                    description = "MicroProfile REST client for the Penvire Lab $service service."
+                    licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+                }
+            }
+            create<MavenPublication>("contract") {
+                artifactId = "$service-openapi"
+                artifact(bundleContract.map { it.outputs.files.singleFile }) { extension = "yaml" }
+                pom {
+                    name = "Penvire Lab $service contract"
+                    description = "Bundled OpenAPI document of the Penvire Lab $service service."
+                    licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+                }
+            }
+        }
+        repositories {
+            maven {
+                name = "forgejo"
+                url = uri(providers.gradleProperty("forgejoMavenUrl").get())
+                // forgejoUsername / forgejoPassword, e.g. from ORG_GRADLE_PROJECT_* in CI.
+                if (url.scheme == "https") credentials(PasswordCredentials::class)
+            }
+        }
     }
 
     dependencies {

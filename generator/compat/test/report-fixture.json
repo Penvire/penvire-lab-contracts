@@ -1,0 +1,46 @@
+{
+  "specification": {
+    "kind": "openapi",
+    "originalVersion": "3.1.0",
+    "modifiedVersion": "3.1.0"
+  },
+  "reportSummary": {
+    "paths": {
+      "totalChanges": 2,
+      "breakingChanges": 2
+    }
+  },
+  "changes": [
+    {
+      "breaking": true,
+      "change": 4,
+      "changeHash": "h-EqjM1Vz-gGdstBSI1qUW3lTUrnUuDly09xIhBBUDM=",
+      "changeText": "object_removed",
+      "context": {
+        "originalColumn": 3,
+        "originalLine": 10
+      },
+      "original": "/v1/c",
+      "path": "$.paths",
+      "property": "/v1/c",
+      "type": "paths"
+    },
+    {
+      "breaking": true,
+      "change": 1,
+      "changeHash": "HuV50Uatm19KqInAZcNOFekZtilWf2YSekN0QYQV2D0=",
+      "changeText": "modified",
+      "context": {
+        "newColumn": 104,
+        "newLine": 9,
+        "originalColumn": 104,
+        "originalLine": 9
+      },
+      "new": "integer",
+      "original": "string",
+      "path": "$.paths['/v1/a'].get.responses['200'].content['application/json'].schema.properties['x']",
+      "property": "type",
+      "type": "schema"
+    }
+  ]
+}

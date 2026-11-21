@@ -12,12 +12,13 @@ openapi/scopes.yaml              scope catalogue for x-penvire-scopes
 openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
+generator/compat/                breaking-change check and the pinned openapi-changes version
 build.gradle.kts                 lint, rule tests and Java client generation into build/clients/<service>
 ```
 
 ## Development environment
 
-Enter the environment with `devenv shell`, or run `direnv allow` once. It provides Java 25, Gradle 9, Node 24, pnpm and openapi-changes. Always run tools through it.
+Enter the environment with `devenv shell`, or run `direnv allow` once. It provides Java 25, Gradle 9, Node 24, pnpm and openapi-changes. Always run tools through it. openapi-changes is the release binary pinned by SHA-256 in `generator/compat/openapi-changes.json`; CI installs it from the same file, so upgrade it there.
 
 Git hooks run automatically: a commit-msg hook rejects messages that are not Conventional Commits (the same rule as CI), and actionlint checks workflow files.
 
@@ -25,8 +26,13 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 
 - `./gradlew build`: Redocly lint of every service document, the lint-rule tests, and generating and compiling each `<service>-client`. CI runs the same command.
 - `pnpm run lint` and `pnpm test`: the Node half on its own.
+- `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
 
 A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
+
+### Publishing
+
+Merging a release PR publishes that service's `<service>-client` and `<service>-openapi` to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo`.
 
 ### Contract rules
 
@@ -45,6 +51,7 @@ Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/
 - Commits are GPG-signed; `main` rejects unsigned commits.
 - PR body: a one-paragraph summary, then a `## Test plan` section.
 - Releases are managed by release-please. Do not bump versions or edit `CHANGELOG.md` by hand.
+- Everything starts at 0.x. Below 1.0.0, `feat` and `fix` bump the patch and a breaking change (`!`) bumps the minor, so a new minor always means breaking. Leaving 0.x is deliberate: a commit with a `Release-As: 1.0.0` footer (ADR 0001 in penvire-lab-backend).
 - The PR title becomes the changelog entry. Keep one user-facing change per PR. If a PR contains several, list every `feat` and `fix` on its own line in the PR description, between `BEGIN_COMMIT_OVERRIDE` and `END_COMMIT_OVERRIDE`; release-please uses that block instead of the title.
 
 ## Agent docs

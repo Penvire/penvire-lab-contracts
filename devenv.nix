@@ -17,6 +17,30 @@ let
       fi
     '';
   };
+
+  # Release binary pinned by SHA-256; CI downloads and verifies the same pin.
+  openapiChangesPin = builtins.fromJSON (builtins.readFile ./generator/compat/openapi-changes.json);
+  system = pkgs.stdenv.hostPlatform.system;
+  openapiChangesAsset =
+    {
+      x86_64-linux = "linux_x86_64";
+      aarch64-linux = "linux_arm64";
+      x86_64-darwin = "darwin_x86_64";
+      aarch64-darwin = "darwin_arm64";
+    }
+    .${system};
+  openapiChanges = pkgs.stdenvNoCC.mkDerivation {
+    pname = "openapi-changes";
+    inherit (openapiChangesPin) version;
+    src = pkgs.fetchurl {
+      url = "https://github.com/pb33f/openapi-changes/releases/download/v${openapiChangesPin.version}/openapi-changes_${openapiChangesPin.version}_${openapiChangesAsset}.tar.gz";
+      sha256 = openapiChangesPin.sha256.${system};
+    };
+    sourceRoot = ".";
+    dontConfigure = true;
+    dontBuild = true;
+    installPhase = "install -Dm755 openapi-changes $out/bin/openapi-changes";
+  };
 in
 {
   languages.java = {
@@ -35,7 +59,7 @@ in
     pnpm.enable = true;
   };
 
-  packages = [ pkgs.openapi-changes ];
+  packages = [ openapiChanges ];
 
   git-hooks.hooks = {
     conventional-commit = {
