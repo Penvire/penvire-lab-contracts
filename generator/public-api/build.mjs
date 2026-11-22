@@ -1,4 +1,5 @@
-// Builds build/public-api/public-api.yaml from every service's `api` operations (ADR 0001).
+// Builds build/public-api/public-api.yaml from every service's `api` and `protocol` operations (ADR 0001),
+// and build/public-api/client.yaml, the same without `protocol` operations, for @penvire-lab/api-client.
 //
 //   node generator/public-api/build.mjs released   each service at its last release tag (for publishing)
 //   node generator/public-api/build.mjs head       the working tree (for pull request checks)
@@ -6,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 import { bundle, extractOpenapiTree, highestVersion, print, run, services } from '../lib/tools.mjs';
-import { mergePublicApi } from './merge.js';
+import { clientDocument, mergePublicApi } from './merge.js';
 
 const OUT = path.resolve('build/public-api');
 const source = process.argv[2] ?? 'head';
@@ -42,5 +43,7 @@ const documents = inputs().map(({ name, root, version }) => {
 const merged = path.join(OUT, 'merged.yaml');
 fs.writeFileSync(merged, YAML.stringify(mergePublicApi(documents, config)));
 const output = bundle(merged, path.join(OUT, 'public-api.yaml'), ['--remove-unused-components']);
-const paths = Object.keys(YAML.parse(fs.readFileSync(output, 'utf8')).paths ?? {}).length;
+const publicApi = YAML.parse(fs.readFileSync(output, 'utf8'));
+fs.writeFileSync(path.join(OUT, 'client.yaml'), YAML.stringify(clientDocument(publicApi)));
+const paths = Object.keys(publicApi.paths ?? {}).length;
 print(`public-api: ${paths} path${paths === 1 ? '' : 's'} from ${documents.length} service${documents.length === 1 ? '' : 's'} → ${path.relative('.', output)}`);

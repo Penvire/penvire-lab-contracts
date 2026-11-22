@@ -43,7 +43,7 @@ val testContractTools by tasks.registering(Exec::class) {
 val publicApiDir = layout.buildDirectory.dir("public-api")
 
 val buildPublicApi by tasks.registering(Exec::class) {
-    description = "Merges every api operation into build/public-api/public-api.yaml (-PpublicApiSource=head|released)."
+    description = "Merges every api and protocol operation into build/public-api/public-api.yaml (-PpublicApiSource=head|released)."
     group = "build"
     dependsOn(pnpmInstall)
     inputs.files(serviceDocuments, fileTree("generator"))
@@ -52,10 +52,10 @@ val buildPublicApi by tasks.registering(Exec::class) {
 }
 
 val generateApiClient by tasks.registering(GenerateTask::class) {
-    description = "Generates the @penvire-lab/api-client sources from public-api.yaml."
+    description = "Generates the @penvire-lab/api-client sources from client.yaml: api operations, every schema."
     dependsOn(buildPublicApi)
     generatorName = "typescript-fetch"
-    inputSpec = publicApiDir.map { it.file("public-api.yaml") }
+    inputSpec = publicApiDir.map { it.file("client.yaml") }
     outputDir = publicApiDir.map { it.dir("ts") }
     cleanupOutput = true
     configOptions = mapOf(
@@ -89,7 +89,7 @@ publishing {
             artifact(publicApiDir.map { it.file("public-api.yaml") }) { extension = "yaml" }
             pom {
                 name = "Penvire Lab public API"
-                description = "Every api operation of every released Penvire Lab service, merged."
+                description = "Every api and protocol operation of every released Penvire Lab service, merged."
                 licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
             }
         }

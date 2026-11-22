@@ -1,7 +1,9 @@
-// Merges the `api` operations of every service into the public API document (ADR 0001).
+// Merges the `api` and `protocol` operations of every service into the public API document (ADR 0001).
 // Inputs are bundled service documents: external refs inlined, internal refs kept.
+// The generated client covers only `api` operations; see clientDocument().
 
 const METHODS = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'];
+const PUBLIC_AUDIENCES = new Set(['api', 'protocol']);
 
 const pascal = (name) => name.split('-').map((part) => part[0].toUpperCase() + part.slice(1)).join('');
 
@@ -40,15 +42,17 @@ function securitySchemes(openIdConnectUrl) {
   };
 }
 
+/** `api` operations take the public security schemes; `protocol` operations stay anonymous. */
 function publicOperation(operation) {
   const { servers: _servers, security: _security, ...rest } = operation;
+  if (operation['x-penvire-audience'] === 'protocol') return { ...rest, security: [] };
   const scopes = operation['x-penvire-scopes'] ?? [];
   return { ...rest, security: [{ openIdConnect: scopes }, { apiToken: scopes }] };
 }
 
 function addOperations(merged, service, document, owners, operationIds) {
   for (const [route, item] of Object.entries(document.paths ?? {})) {
-    const methods = METHODS.filter((method) => item?.[method]?.['x-penvire-audience'] === 'api');
+    const methods = METHODS.filter((method) => PUBLIC_AUDIENCES.has(item?.[method]?.['x-penvire-audience']));
     if (methods.length === 0) continue;
     if (owners.has(route) && owners.get(route) !== service) {
       throw new Error(`${route} is declared by both ${owners.get(route)} and ${service}`);
@@ -95,4 +99,19 @@ export function mergePublicApi(services, { title, description, serverUrl, openId
     addComponents(merged, prefix, renamed.components);
   }
   return merged;
+}
+
+/**
+ * The input for @penvire-lab/api-client: the public API without `protocol` operations.
+ * Components stay, so clients get the protocol schemas as types but no methods; protocol
+ * endpoints belong to the clients' OIDC library.
+ */
+export function clientDocument(publicApi) {
+  const paths = {};
+  for (const [route, item] of Object.entries(publicApi.paths ?? {})) {
+    const kept = Object.fromEntries(Object.entries(item).filter(([key, value]) =>
+      !METHODS.includes(key) || value?.['x-penvire-audience'] === 'api'));
+    if (METHODS.some((method) => method in kept)) paths[route] = kept;
+  }
+  return { ...publicApi, paths };
 }
