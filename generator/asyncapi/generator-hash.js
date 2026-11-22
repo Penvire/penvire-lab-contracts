@@ -4,8 +4,8 @@
 // changes.
 import crypto from 'node:crypto';
 
-/** The generator's own sources: they decide what the generated classes look like. */
-export const GENERATOR_SOURCES = ['generator/avro/build.gradle.kts', 'generator/avro/src/main'];
+/** Generator sources and the version catalog that selects the Avro compiler through the BOM. */
+export const GENERATOR_SOURCES = ['generator/avro/build.gradle.kts', 'generator/avro/src/main', 'gradle/libs.versions.toml'];
 
 /** SHA-256 over `[{ path, content }]`, independent of the order they are listed in. */
 export function generatorHash(files) {

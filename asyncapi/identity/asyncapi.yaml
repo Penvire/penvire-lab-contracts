@@ -60,7 +60,7 @@ components:
             description: The schema revision the payload was written with.
           content-type:
             const: application/avro
-          traceparent:
+          ce_traceparent:
             type: string
             description: W3C trace context of the operation that caused the event.
       payload:

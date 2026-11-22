@@ -37,7 +37,14 @@ val lintEvents by tasks.registering(Exec::class) {
     description = "Validates every AsyncAPI document and checks the Penvire event rules."
     group = "verification"
     dependsOn(pnpmInstall)
-    inputs.files(eventDocuments, fileTree("asyncapi") { include("*/generator.sha256") }, fileTree("generator/asyncapi"), fileTree("generator/avro/src/main"), "generator/avro/build.gradle.kts")
+    inputs.files(
+        eventDocuments,
+        fileTree("asyncapi") { include("*/generator.sha256") },
+        fileTree("generator/asyncapi"),
+        fileTree("generator/avro/src/main"),
+        "generator/avro/build.gradle.kts",
+        "gradle/libs.versions.toml",
+    )
     outputs.upToDateWhen { true }
     commandLine("node", "generator/asyncapi/lint.mjs")
 }

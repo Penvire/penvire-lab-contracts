@@ -2,19 +2,33 @@
 // (ADR 0004 in penvire-lab-backend).
 
 function resolve(document, value) {
-  const ref = value?.$ref;
-  if (typeof ref !== 'string' || !ref.startsWith('#/')) return value;
-  return ref.slice(2).split('/').reduce((node, key) => node?.[key.replaceAll('~1', '/').replaceAll('~0', '~')], document);
+  const seen = new Set();
+  while (typeof value?.$ref === 'string' && value.$ref.startsWith('#/')) {
+    const ref = value.$ref;
+    if (seen.has(ref)) return undefined;
+    seen.add(ref);
+    value = ref.slice(2).split('/').reduce((node, key) => node?.[key.replaceAll('~1', '/').replaceAll('~0', '~')], document);
+  }
+  return value;
 }
 
 /** Map of channel address → set of CloudEvents types sent on it. */
 function sentTypes(document) {
   const result = new Map();
-  for (const channel of Object.values(document?.channels ?? {})) {
-    const types = new Set(Object.values(channel?.messages ?? {})
-      .map((message) => resolve(document, message)?.headers?.properties?.ce_type?.const)
-      .filter(Boolean));
-    result.set(channel.address, types);
+  for (const entry of Object.values(document?.channels ?? {})) {
+    const channel = resolve(document, entry);
+    if (channel?.address) result.set(channel.address, new Set());
+  }
+  for (const entry of Object.values(document?.operations ?? {})) {
+    const operation = resolve(document, entry);
+    if (operation?.action !== 'send') continue;
+    const channel = resolve(document, operation.channel);
+    const types = result.get(channel?.address);
+    if (!types) continue;
+    for (const message of operation.messages ?? Object.values(channel.messages ?? {})) {
+      const type = resolve(document, message)?.headers?.properties?.ce_type?.const;
+      if (type) types.add(type);
+    }
   }
   return result;
 }

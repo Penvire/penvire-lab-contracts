@@ -5,7 +5,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
+import org.apache.avro.Resolver;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
@@ -120,64 +122,66 @@ public record SchemaRevisions(String fullName, List<Schema> revisions) {
           problems.add(
               "%s: revision %d cannot read revision %d: %s"
                   .formatted(name, reader + 1, writer + 1, String.join("; ", reasons)));
+        } else {
+          Schema writerSchema = revisions.get(writer);
+          List<String> changes = new ArrayList<>();
+          collectLogicalTypeChanges(
+              Resolver.resolve(writerSchema, revisions.get(reader)), writerSchema, "",
+              changes, Collections.newSetFromMap(new IdentityHashMap<>()));
+          for (String change : changes) {
+            problems.add("%s: revision %d %s (revision %d)".formatted(name, reader + 1, change, writer + 1));
+          }
         }
-        checkLogicalTypes(name, revisions, reader, writer, problems);
       }
     }
   }
 
   /**
    * Avro resolves by encoded type only: {@code timestamp-millis} to {@code timestamp-micros} is
-   * "compatible" but turns every value into a different instant. A value at the same path must
-   * keep its logical type in every revision.
+   * "compatible" but turns every value into a different instant. Follow Avro's resolved pairs
+   * so aliases, promotions, and union branches still compare the values the reader sees.
    */
-  private static void checkLogicalTypes(
-      String name, List<Schema> revisions, int reader, int writer, List<String> problems) {
-    Map<String, String> before = new TreeMap<>();
-    Map<String, String> after = new TreeMap<>();
-    collectLogicalTypes(revisions.get(writer), "", before, new HashSet<>());
-    collectLogicalTypes(revisions.get(reader), "", after, new HashSet<>());
-    before.forEach(
-        (path, logical) -> {
-          String changed = after.get(path);
-          if (changed != null && !changed.equals(logical)) {
-            problems.add(
-                "%s: revision %d changes the logical type at %s from %s to %s (revision %d)"
-                    .formatted(name, reader + 1, path, logical, changed, writer + 1));
-          }
-        });
-  }
-
-  /**
-   * Maps every value, keyed by its path and encoded type ({@code /field<long>}; {@code []} for
-   * array items, {@code {}} for map values), to its logical type, or {@code none}. A union adds no
-   * path segment of its own, so making a field nullable keeps its key.
-   */
-  private static void collectLogicalTypes(
-      Schema schema, String path, Map<String, String> out, Set<String> visiting) {
-    if (schema.getType() == Schema.Type.UNION) {
-      for (Schema branch : schema.getTypes()) {
-        collectLogicalTypes(branch, path, out, visiting);
+  private static void collectLogicalTypeChanges(
+      Resolver.Action action, Schema writer, String path, List<String> changes,
+      Set<Resolver.Action> visiting) {
+    if (action instanceof Resolver.WriterUnion union) {
+      for (int i = 0; i < union.actions.length; i++) {
+        collectLogicalTypeChanges(union.actions[i], writer.getTypes().get(i), path, changes, visiting);
       }
       return;
     }
-    String key = path + "<" + typeKey(schema) + ">";
-    out.put(key, describeLogicalType(schema));
-    switch (schema.getType()) {
-      case RECORD -> {
-        // Recursive records would otherwise recurse forever.
-        if (!visiting.add(schema.getFullName())) {
-          return;
-        }
-        for (Schema.Field field : schema.getFields()) {
-          collectLogicalTypes(field.schema(), key + "/" + field.name(), out, visiting);
-        }
-        visiting.remove(schema.getFullName());
-      }
-      case ARRAY -> collectLogicalTypes(schema.getElementType(), key + "[]", out, visiting);
-      case MAP -> collectLogicalTypes(schema.getValueType(), key + "{}", out, visiting);
-      default -> {}
+    if (action instanceof Resolver.ReaderUnion union) {
+      collectLogicalTypeChanges(union.actualAction, writer, path, changes, visiting);
+      return;
     }
+    if (action instanceof Resolver.Skip || action instanceof Resolver.ErrorAction || !visiting.add(action)) {
+      return;
+    }
+
+    String key = path + "<" + typeKey(action.reader) + ">";
+    // Use the original writer schema: applying aliases can rebuild named schemas.
+    String before = describeLogicalType(writer);
+    String after = describeLogicalType(action.reader);
+    if (!before.equals(after)) {
+      changes.add("changes the logical type at %s from %s to %s".formatted(key, before, after));
+    }
+    if (action instanceof Resolver.RecordAdjust record) {
+      for (int i = 0, j = 0; i < record.fieldActions.length; i++) {
+        Resolver.Action field = record.fieldActions[i];
+        if (!(field instanceof Resolver.Skip)) {
+          collectLogicalTypeChanges(
+              field, writer.getFields().get(i).schema(), key + "/" + record.readerOrder[j++].name(),
+              changes, visiting);
+        }
+      }
+    } else if (action instanceof Resolver.Container container) {
+      if (writer.getType() == Schema.Type.ARRAY) {
+        collectLogicalTypeChanges(container.elementAction, writer.getElementType(), key + "[]", changes, visiting);
+      } else {
+        collectLogicalTypeChanges(container.elementAction, writer.getValueType(), key + "{}", changes, visiting);
+      }
+    }
+    visiting.remove(action);
   }
 
   private static String typeKey(Schema schema) {

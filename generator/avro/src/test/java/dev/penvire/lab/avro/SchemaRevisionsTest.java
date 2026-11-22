@@ -107,6 +107,28 @@ class SchemaRevisionsTest {
   }
 
   @Test
+  void renamingAFieldWithAnAliasDoesNotHideALogicalTypeChange() throws IOException {
+    write(NAME, "1.avsc", record(NAME, field("expiresAt", MILLIS)));
+    write(
+        NAME,
+        "2.avsc",
+        record(NAME, """
+            {"name": "expiry", "aliases": ["expiresAt"],
+             "type": {"type": "long", "logicalType": "timestamp-micros"}}"""));
+
+    assertProblem("/expiry<long> from timestamp-millis to timestamp-micros");
+  }
+
+  @Test
+  void promotingAValueIntoAReaderUnionDoesNotHideALogicalTypeChange() throws IOException {
+    String date = "{\"type\": \"int\", \"logicalType\": \"date\"}";
+    write(NAME, "1.avsc", record(NAME, field("expiry", "[\"null\", " + date + "]")));
+    write(NAME, "2.avsc", record(NAME, field("expiry", "[\"null\", " + MILLIS + "]")));
+
+    assertProblem("/expiry<long> from date to timestamp-millis");
+  }
+
+  @Test
   void decimalPrecisionAndScaleArePartOfTheLogicalType() throws IOException {
     String decimal = "{\"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": %d, \"scale\": 2}";
     write(NAME, "1.avsc", record(NAME, field("amount", decimal.formatted(9))));
