@@ -1,11 +1,11 @@
 asyncapi: 3.1.0
 info:
   title: Penvire Lab Identity events
-  version: 0.0.0
+  version: 0.1.0
   description: >-
     Events Identity publishes. Each event is a CloudEvent in Kafka binary
-    content mode: the attributes travel as `ce_` headers and the record value
-    is the Avro-encoded payload alone (ADR 0004 in penvire-lab-backend).
+    content mode: the attributes travel as `ce_` headers and the record value is
+    the Avro-encoded payload alone (ADR 0004 in penvire-lab-backend).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -35,7 +35,15 @@ components:
       contentType: application/avro
       headers:
         type: object
-        required: [ce_specversion, ce_id, ce_source, ce_type, ce_subject, ce_time, ce_dataschema, content-type]
+        required:
+          - ce_specversion
+          - ce_id
+          - ce_source
+          - ce_type
+          - ce_subject
+          - ce_time
+          - ce_dataschema
+          - content-type
         properties:
           ce_specversion:
             const: '1.0'
@@ -56,7 +64,8 @@ components:
             description: When the token was issued.
           ce_dataschema:
             type: string
-            pattern: '^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.AccessTokenIssued:[1-9][0-9]*$'
+            pattern: >-
+              ^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.AccessTokenIssued:[1-9][0-9]*$
             description: The schema revision the payload was written with.
           content-type:
             const: application/avro
