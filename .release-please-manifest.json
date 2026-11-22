@@ -4,5 +4,6 @@
   "openapi/engagement": "0.0.0",
   "openapi/evidence": "0.0.0",
   "openapi/audit": "0.0.0",
-  "openapi/bff": "0.0.0"
+  "openapi/bff": "0.0.0",
+  "asyncapi/identity": "0.0.0"
 }

@@ -10,12 +10,15 @@ OpenAPI, AsyncAPI and Avro contracts between the Penvire Lab services and client
 openapi/<service>/openapi.yaml   one service document; one release component and one Java client each
 openapi/scopes.yaml              scope catalogue for x-penvire-scopes
 openapi/workloads.yaml           workload catalogue for x-penvire-callers
-asyncapi/<domain>/               AsyncAPI and Avro schemas per event domain (not defined yet)
+asyncapi/<service>/asyncapi.yaml one AsyncAPI document per event-publishing service; one release component and one <service>-events package each
+asyncapi/<service>/avro/         Avro schema revisions: <full name>/<revision>.avsc, immutable once merged
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
-generator/compat/                breaking-change check and the pinned openapi-changes version
+generator/compat/                breaking-change check (service and AsyncAPI documents, frozen revisions) and the pinned openapi-changes version
+generator/asyncapi/              AsyncAPI validation and the Penvire event rules
+generator/avro/                  Java tool: checks schema revisions (naming, numbering, backward-transitive compatibility) and generates the event classes
 generator/public-api/            merged public API: merge, diff-based versioning, @penvire-lab/api-client packaging
 generator/lib/                   helpers shared by the scripts
-build.gradle.kts                 lint, tests, Java clients (build/clients/<service>) and public-api with its TS client (build/public-api)
+build.gradle.kts                 lint, tests, Java clients (build/clients/<service>), event packages (build/events/<service>) and public-api with its TS client (build/public-api)
 ```
 
 ## Development environment
@@ -26,17 +29,21 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 
 ### Building
 
-- `./gradlew build`: Redocly lint of every service document, the script tests, generating and compiling each `<service>-client`, and building public-api from the working tree with `@penvire-lab/api-client` compiled and packed. CI runs the same command.
+- `./gradlew build`: Redocly lint of every service document, AsyncAPI validation, the script and schema tool tests, generating and compiling each `<service>-client` and `<service>-events` (which fails on an invalid or incompatible schema revision), and building public-api from the working tree with `@penvire-lab/api-client` compiled and packed. CI runs the same command.
 - `pnpm run lint` and `pnpm test`: the Node half on its own.
-- `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
+- `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). It also compares every AsyncAPI document (a removed channel, or an event type no longer sent on a channel, is breaking) and fails outright when a schema revision that exists on the base was changed or deleted. The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
 
 A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
 
+A service that publishes events needs `asyncapi/<service>/asyncapi.yaml` with `info.version: 0.0.0` and at least one schema revision; Gradle adds `:<service>-events` automatically. Register `asyncapi/<service>` (component `asyncapi-<service>`) in both release-please files and record the generator hash with `pnpm run events:generator-hash`.
+
+A change below `generator/avro/` changes the generated classes, but release-please only releases components whose path a commit touches. So each `asyncapi/<service>/generator.sha256` holds a hash of the generator, and `pnpm run lint` fails until `pnpm run events:generator-hash` updates it. Give that PR a `fix` or `feat` title, so the event packages are released.
+
 ### Publishing
 
-Merging a release PR publishes that service's `<service>-client` and `<service>-openapi` to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded.
+Merging a release PR publishes that service's `<service>-client` and `<service>-openapi`, or for an AsyncAPI document its `<service>-events`, to the Forgejo Maven registry (`forgejoMavenUrl` in `gradle.properties`). The `publish` job in `release-please.yml` does this with the Actions variable `FORGEJO_USER` and the secret `FORGEJO_TOKEN`. A rerun skips versions that are already uploaded.
 
-After that, the `public-api` job merges the `api` and `protocol` operations of every service at its last release tag (`node generator/public-api/build.mjs released`). It compares the result with the last published `dev.penvire.lab:public-api` on Forgejo, which is the baseline, and versions it from the diff (`release.mjs`; 0.x rules as for services). If anything changed, it publishes `@penvire-lab/api-client` (methods for `api` operations only, every schema as a type) to Forgejo npm and then `public-api` (YAML) to Forgejo Maven. Settings such as the gateway URL live in `generator/public-api/config.yaml`. Finally, `label-published` adds `autorelease: published` to the release PR. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo`.
+After that, the `public-api` job merges the `api` and `protocol` operations of every service at its last release tag (`node generator/public-api/build.mjs released`). It compares the result with the last published `dev.penvire.lab:public-api` on Forgejo, which is the baseline, and versions it from the diff (`release.mjs`; 0.x rules as for services). If anything changed, it publishes `@penvire-lab/api-client` (methods for `api` operations only, every schema as a type) to Forgejo npm and then `public-api` (YAML) to Forgejo Maven. Settings such as the gateway URL live in `generator/public-api/config.yaml`. Finally, `label-published` adds `autorelease: published` to the release PR. Never publish by hand. To test the publication locally, use `./gradlew :<service>-client:publishAllPublicationsToForgejoRepository -PforgejoMavenUrl=file:///tmp/repo` (or `:<service>-events:…`).
 
 ### Contract rules
 
@@ -47,6 +54,17 @@ Decided in ADR 0001 of `penvire-lab-backend` and enforced by `generator/redocly/
 - `service` operations declare `x-penvire-callers`, the workloads allowed to call them, from `openapi/workloads.yaml`; `api` and `protocol` operations declare none.
 - `api` paths start with `/v<major>/`, `service` paths with `/internal/v<major>/`; `protocol` paths are unversioned. Below contract version 1.0.0, the path major is always `/v1`.
 - Path items stay inline in the service document; the rules read operations from `paths`.
+
+### Event rules
+
+Decided in ADR 0004 of `penvire-lab-backend`, enforced by `generator/asyncapi/rules.js` and `generator/avro`:
+
+- Events are CloudEvents in Kafka binary content mode. Every message requires the headers `ce_specversion`, `ce_id`, `ce_source` (const `/penvire-lab/<service>`), `ce_type` (const `dev.penvire.lab.<service>.<event>.v<major>`), `ce_subject`, `ce_time`, `ce_dataschema` and `content-type`, and describes the Kafka record key (the aggregate ID).
+- One channel per aggregate type, addressed `<service>.<aggregate>`, e.g. `identity.access-token`. Channel messages `$ref` component messages.
+- Payloads are Avro records named `dev.penvire.lab.<service>.events.v<major>.<RecordName>`, stored as `avro/<full name>/<revision>.avsc`. `ce_type` repeats the record name in kebab case and the same major. The message references the latest revision; `ce_dataschema` is `urn:penvire-lab:schema:<full name>:<revision>`, the revision the producer wrote with.
+- Revisions start at 1, have no gaps, and each one reads every earlier one (backward transitive). A value keeps its logical type (and decimal precision and scale) in every revision, which Avro's own check does not enforce. A merged revision never changes: change a schema by adding the next revision. An incompatible change is a new major: a new record name, a new `ce_type` and a new channel.
+- `<service>-events` contains the classes generated from the latest revisions and every revision as the resource `avro/<full name>/<revision>.avsc`, so a consumer finds the writer schema from `ce_dataschema` alone.
+- A producer always writes the latest revision in the `<service>-events` version it depends on. Raising that dependency is how it moves to a new revision, and it waits until every consumer depends on a version that contains it.
 
 ## Rules
 

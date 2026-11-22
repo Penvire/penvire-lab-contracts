@@ -31,6 +31,17 @@ val lintContracts by tasks.registering(Exec::class) {
     commandLine(listOf("pnpm", "exec", "redocly", "lint") + serviceDocuments.files.sorted().map { it.relativeTo(projectDir).path })
 }
 
+val eventDocuments = fileTree("asyncapi") { include("*/asyncapi.yaml", "*/avro/**") }
+
+val lintEvents by tasks.registering(Exec::class) {
+    description = "Validates every AsyncAPI document and checks the Penvire event rules."
+    group = "verification"
+    dependsOn(pnpmInstall)
+    inputs.files(eventDocuments, fileTree("asyncapi") { include("*/generator.sha256") }, fileTree("generator/asyncapi"), fileTree("generator/avro/src/main"), "generator/avro/build.gradle.kts")
+    outputs.upToDateWhen { true }
+    commandLine("node", "generator/asyncapi/lint.mjs")
+}
+
 val testContractTools by tasks.registering(Exec::class) {
     description = "Tests the lint rules and the breaking-change check."
     group = "verification"
@@ -76,7 +87,7 @@ val packageApiClient by tasks.registering(Exec::class) {
 }
 
 tasks.check {
-    dependsOn(lintContracts, testContractTools, packageApiClient)
+    dependsOn(lintContracts, lintEvents, testContractTools, packageApiClient)
 }
 
 // Uploads an already built and versioned public-api.yaml; the release workflow builds it first.
@@ -97,7 +108,7 @@ publishing {
     repositories { forgejo(project) }
 }
 
-/** Reads info.version, which release-please maintains, from a service document. */
+/** Reads info.version, which release-please maintains, from an OpenAPI or AsyncAPI document. */
 fun infoVersion(document: File): String =
     Regex("""(?m)^info:\s*\n(?:[ \t]+.*\n)*?[ \t]+version:\s*['"]?([0-9A-Za-z.+-]+)""")
         .find(document.readText())
@@ -105,7 +116,7 @@ fun infoVersion(document: File): String =
         ?.get(1)
         ?: error("$document has no info.version")
 
-subprojects {
+configure(subprojects.filter { it.name.endsWith("-client") }) {
     apply(plugin = "java-library")
 
     val service = name.removeSuffix("-client")
@@ -209,5 +220,71 @@ subprojects {
         "api"("com.fasterxml.jackson.core:jackson-annotations")
         "api"("com.fasterxml.jackson.core:jackson-databind")
         "api"("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    }
+}
+
+// One event package per AsyncAPI document: Java classes for the latest revision of each schema,
+// plus every revision as avro/<full name>/<revision>.avsc, which consumers find by ce_dataschema
+// (ADR 0004 in penvire-lab-backend).
+configure(subprojects.filter { it.name.endsWith("-events") }) {
+    apply(plugin = "java-library")
+    apply(plugin = "maven-publish")
+
+    val service = name.removeSuffix("-events")
+    val avroDir = file("avro")
+    val generatedDir = layout.buildDirectory.dir("generated/avro")
+
+    group = "dev.penvire.lab"
+    version = infoVersion(file("asyncapi.yaml"))
+    layout.buildDirectory = rootProject.layout.buildDirectory.dir("events/$service")
+
+    val avroTool = configurations.create("avroTool")
+    dependencies { avroTool(project(":avro-tools")) }
+
+    val generateEvents = tasks.register<JavaExec>("generateEvents") {
+        description = "Checks the $service schema revisions and generates Java for the latest ones."
+        classpath = avroTool
+        mainClass = "dev.penvire.lab.avro.SchemaTool"
+        inputs.dir(avroDir)
+        outputs.dir(generatedDir)
+        args("generate", avroDir.path, service, generatedDir.get().asFile.path)
+    }
+
+    extensions.configure<JavaPluginExtension> {
+        withSourcesJar()
+        sourceSets.named("main") {
+            java.srcDir(generateEvents)
+            resources.srcDir(layout.projectDirectory).include("avro/**/*.avsc")
+        }
+    }
+
+    tasks.withType<JavaCompile>().configureEach {
+        options.release = 25
+        options.encoding = "UTF-8"
+    }
+
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
+    }
+
+    extensions.configure<PublishingExtension> {
+        publications {
+            create<MavenPublication>("events") {
+                artifactId = project.name
+                from(components["java"])
+                pom {
+                    name = "Penvire Lab $service events"
+                    description = "Avro event classes and every schema revision of the Penvire Lab $service service."
+                    licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+                }
+            }
+        }
+        repositories { forgejo(project) }
+    }
+
+    dependencies {
+        "api"(platform(rootProject.libs.quarkus.bom))
+        "api"("org.apache.avro:avro")
     }
 }

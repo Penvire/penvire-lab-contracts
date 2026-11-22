@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       paths_released: ${{ steps.release.outputs.paths_released }}
+      # The merged public API and the Swagger site only change when a service document is released.
+      openapi_released: ${{ contains(steps.release.outputs.paths_released, '"openapi/') }}
     steps:
       # A GitHub App token, because PRs opened with GITHUB_TOKEN don't trigger
       # the required checks, and Actions may not create PRs in this org.
@@ -35,7 +37,8 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # One job per released service document: <service>-client and <service>-openapi.
+  # One job per released document: <service>-client and <service>-openapi for a service
+  # document, <service>-events for an AsyncAPI document.
   publish:
     name: Publish ${{ matrix.path }}
     needs: release-please
@@ -70,23 +73,28 @@ jobs:
           ORG_GRADLE_PROJECT_forgejoUsername: ${{ vars.FORGEJO_USER }}
           ORG_GRADLE_PROJECT_forgejoPassword: ${{ secrets.FORGEJO_TOKEN }}
         run: |
-          service="${RELEASE_PATH#openapi/}"
-          version=$(awk '/^info:/ { inInfo = 1 } inInfo && /^  version:/ { print $2; exit }' "$RELEASE_PATH/openapi.yaml")
+          # openapi/<service> publishes :<service>-client, asyncapi/<service> :<service>-events.
+          case "$RELEASE_PATH" in
+            openapi/*) kind=openapi; artifact="${RELEASE_PATH#openapi/}-client" ;;
+            asyncapi/*) kind=asyncapi; artifact="${RELEASE_PATH#asyncapi/}-events" ;;
+            *) echo "Unknown release path: $RELEASE_PATH" >&2; exit 1 ;;
+          esac
+          version=$(awk '/^info:/ { inInfo = 1 } inInfo && /^  version:/ { print $2; exit }' "$RELEASE_PATH/$kind.yaml")
           registry=$(sed -n 's/^forgejoMavenUrl=//p' gradle.properties)
-          pom="$registry/dev/penvire/lab/${service}-client/${version}/${service}-client-${version}.pom"
+          pom="$registry/dev/penvire/lab/${artifact}/${version}/${artifact}-${version}.pom"
           # Packages are public: a rerun skips versions that are already uploaded.
           if curl -fsS -o /dev/null "$pom"; then
-            echo "${service} ${version} is already published."
+            echo "${artifact} ${version} is already published."
             exit 0
           fi
-          ./gradlew ":${service}-client:publishAllPublicationsToForgejoRepository" --console=plain
+          ./gradlew ":${artifact}:publishAllPublicationsToForgejoRepository" --console=plain
 
   # Rebuilds the merged public API from every service's last release and publishes it
   # when it differs from the last published one (ADR 0001).
   public-api:
     name: Publish public-api
     needs: [release-please, publish]
-    if: needs.release-please.outputs.paths_released != '' && needs.release-please.outputs.paths_released != '[]'
+    if: needs.release-please.outputs.openapi_released == 'true'
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,7 +170,7 @@ jobs:
 
   swagger-pages:
     needs: [release-please, publish, public-api]
-    if: needs.release-please.outputs.paths_released != '' && needs.release-please.outputs.paths_released != '[]'
+    if: needs.release-please.outputs.openapi_released == 'true'
     permissions:
       contents: read
       pages: write

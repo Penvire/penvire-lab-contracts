@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "AccessTokenIssued",
+  "namespace": "dev.penvire.lab.identity.events.v1",
+  "doc": "Identity issued an access token. The event's time is the token's issued-at.",
+  "fields": [
+    { "name": "tokenId", "type": "string", "doc": "The token's `jti`." },
+    { "name": "subject", "type": "string", "doc": "The token's `sub`: the user or workload the token acts for." },
+    { "name": "clientId", "type": "string", "doc": "The token's `client_id`: the client it was issued to." },
+    { "name": "audience", "type": "string", "doc": "The token's `aud`: the service that accepts it." },
+    {
+      "name": "expiresAt",
+      "type": { "type": "long", "logicalType": "timestamp-millis" },
+      "doc": "The token's `exp`."
+    }
+  ]
+}
