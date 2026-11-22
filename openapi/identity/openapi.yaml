@@ -31,7 +31,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenIdConfiguration'
-  /jwks:
+  /.well-known/jwks.json:
     get:
       operationId: getJwks
       summary: Get the token verification keys
