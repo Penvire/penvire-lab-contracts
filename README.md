@@ -44,8 +44,8 @@ For npm, point the scope at the registry in `.npmrc`:
 
 ## API reference
 
-The Swagger UI landing page lists the latest and earlier OpenAPI releases for
-each service. Each release, such as `openapi-identity-v0.1.0/`, has a read-only
+The [Swagger UI landing page](https://penvire.github.io/penvire-lab-contracts/)
+lists the latest and earlier OpenAPI releases for each service. Each release, such as `openapi-identity-v0.1.0/`, has a read-only
 reference and a downloadable, bundled `openapi.yaml`.
 
 To preview it locally, build the site from Git tags and serve the output:
@@ -57,9 +57,9 @@ devenv shell -- pnpm run swagger-site
 python3 -m http.server 8000 --directory build/swagger-site
 ```
 
-Open <http://localhost:8000/>. For the hosted site, set **Settings → Pages → Source**
-to **GitHub Actions** and run **Deploy Swagger Pages** on `main` for the first
-deployment. Later contract releases deploy the site after package publication.
+Open <http://localhost:8000/>. The hosted site is served by GitHub Pages
+(source: **GitHub Actions**). Every contract release deploys it after package
+publication; to redeploy by hand, run **Deploy Swagger Pages** on `main`.
 
 ## Related
 
