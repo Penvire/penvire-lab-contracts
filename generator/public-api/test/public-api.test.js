@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mergePublicApi, prefixRefs } from '../merge.js';
+import { clientDocument, mergePublicApi, prefixRefs } from '../merge.js';
 import { classify, nextVersion } from '../version.js';
 
 const config = {
@@ -34,14 +34,34 @@ const engagement = {
 
 const identity = {
   paths: {
-    '/.well-known/openid-configuration': { get: { operationId: 'discovery', 'x-penvire-audience': 'protocol', responses: { 200: { description: 'OK' } } } },
+    '/.well-known/openid-configuration': {
+      get: {
+        operationId: 'discovery',
+        'x-penvire-audience': 'protocol',
+        security: [],
+        servers: [{ url: 'https://identity.internal' }],
+        responses: { 200: { description: 'OK', content: { 'application/json': { schema: { $ref: '#/components/schemas/Owner' } } } } },
+      },
+    },
   },
   components: { schemas: { Owner: { type: 'integer' } } },
 };
 
-test('only api operations are merged, with public security and the scopes they need', () => {
+test('api and protocol operations are merged, service operations are not', () => {
   const merged = mergePublicApi([{ name: 'identity', document: identity }, { name: 'engagement', document: engagement }], config);
-  assert.deepEqual(Object.keys(merged.paths), ['/v1/t/{tenantId}/engagements']);
+  assert.deepEqual(Object.keys(merged.paths).sort(), ['/.well-known/openid-configuration', '/v1/t/{tenantId}/engagements']);
+});
+
+test('protocol operations stay anonymous and lose their servers', () => {
+  const merged = mergePublicApi([{ name: 'identity', document: identity }], config);
+  const operation = merged.paths['/.well-known/openid-configuration'].get;
+  assert.deepEqual(operation.security, []);
+  assert.equal(operation.servers, undefined);
+  assert.equal(operation.responses[200].content['application/json'].schema.$ref, '#/components/schemas/IdentityOwner');
+});
+
+test('api operations get public security with the scopes they need', () => {
+  const merged = mergePublicApi([{ name: 'identity', document: identity }, { name: 'engagement', document: engagement }], config);
   const operation = merged.paths['/v1/t/{tenantId}/engagements'].get;
   assert.deepEqual(operation.security, [{ openIdConnect: ['engagement:read'] }, { apiToken: ['engagement:read'] }]);
   assert.equal(operation.servers, undefined);
@@ -71,8 +91,31 @@ test('a path or operationId claimed by two services is rejected', () => {
   assert.throws(() => mergePublicApi([{ name: 'engagement', document: engagement }, { name: 'evidence', document: renamedPath }], config), /operationId listEngagements/);
 });
 
-test('a document without api operations has no paths', () => {
-  assert.deepEqual(mergePublicApi([{ name: 'identity', document: identity }], config).paths, {});
+test('the client document drops protocol operations but keeps their schemas', () => {
+  const merged = mergePublicApi([{ name: 'identity', document: identity }, { name: 'engagement', document: engagement }], config);
+  const client = clientDocument(merged);
+  assert.deepEqual(Object.keys(client.paths), ['/v1/t/{tenantId}/engagements']);
+  assert.equal(client.paths['/v1/t/{tenantId}/engagements'].parameters[0].name, 'tenantId');
+  assert.ok(client.components.schemas.IdentityOwner);
+  assert.ok(merged.paths['/.well-known/openid-configuration'], 'the public API itself is not changed');
+});
+
+test('a path item with api and protocol methods keeps only the api method in the client', () => {
+  const mixed = {
+    paths: {
+      '/v1/mixed': {
+        get: { operationId: 'getMixed', 'x-penvire-audience': 'api', responses: { 200: { description: 'OK' } } },
+        post: { operationId: 'postMixed', 'x-penvire-audience': 'protocol', responses: { 200: { description: 'OK' } } },
+      },
+    },
+  };
+  const client = clientDocument(mergePublicApi([{ name: 'identity', document: mixed }], config));
+  assert.deepEqual(Object.keys(client.paths['/v1/mixed']), ['get']);
+});
+
+test('a document without public operations has no paths', () => {
+  const internal = { paths: { '/internal/v1/x': engagement.paths['/internal/v1/engagements'] } };
+  assert.deepEqual(mergePublicApi([{ name: 'identity', document: internal }], config).paths, {});
 });
 
 test('changes are classified from the report and the Penvire findings', () => {
