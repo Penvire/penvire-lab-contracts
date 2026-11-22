@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "SessionStarted",
+  "namespace": "dev.penvire.lab.identity.events.v1",
+  "doc": "Identity established a new login session for a user and client.",
+  "fields": [
+    { "name": "sessionId", "type": "string", "doc": "The stable ID of the login session." },
+    { "name": "subject", "type": "string", "doc": "Identity's subject identifier (`sub`) for the user who logged in." },
+    { "name": "clientId", "type": "string", "doc": "The OAuth client ID of the client that started the session." }
+  ]
+}

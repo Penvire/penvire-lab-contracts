@@ -11,27 +11,44 @@ info:
     url: https://www.apache.org/licenses/LICENSE-2.0
 defaultContentType: application/avro
 channels:
-  accessToken:
-    address: identity.access-token
+  session:
+    address: identity.session
     description: >-
-      Access tokens Identity issued. The record key is the token ID, so the
-      events of one token stay in order.
+      Login sessions Identity establishes. The record key is the session ID,
+      so the events of one session stay in order.
     messages:
-      accessTokenIssued:
-        $ref: '#/components/messages/AccessTokenIssued'
+      sessionStarted:
+        $ref: '#/components/messages/SessionStarted'
+  jwk:
+    address: identity.jwk
+    description: >-
+      Public verification keys Identity publishes. The record key is the key
+      ID (`kid`), so the events of one key stay in order.
+    messages:
+      jwkPublished:
+        $ref: '#/components/messages/JwkPublished'
 operations:
-  sendAccessTokenIssued:
+  sendSessionStarted:
     action: send
     channel:
-      $ref: '#/channels/accessToken'
+      $ref: '#/channels/session'
     messages:
-      - $ref: '#/channels/accessToken/messages/accessTokenIssued'
+      - $ref: '#/channels/session/messages/sessionStarted'
+  sendJwkPublished:
+    action: send
+    channel:
+      $ref: '#/channels/jwk'
+    messages:
+      - $ref: '#/channels/jwk/messages/jwkPublished'
 components:
   messages:
-    AccessTokenIssued:
-      name: AccessTokenIssued
-      title: Access token issued
-      summary: Identity issued an access token.
+    SessionStarted:
+      name: SessionStarted
+      title: Login session started
+      summary: Identity established a new login session for a user and client.
+      description: >-
+        Identity publishes this event when the login session is created.
+        Refreshing tokens for an existing session does not produce this event.
       contentType: application/avro
       headers:
         type: object
@@ -54,18 +71,18 @@ components:
           ce_source:
             const: /penvire-lab/identity
           ce_type:
-            const: dev.penvire.lab.identity.access-token-issued.v1
+            const: dev.penvire.lab.identity.session-started.v1
           ce_subject:
             type: string
-            description: The token ID.
+            description: The session ID.
           ce_time:
             type: string
             format: date-time
-            description: When the token was issued.
+            description: When the session was established.
           ce_dataschema:
             type: string
             pattern: >-
-              ^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.AccessTokenIssued:[1-9][0-9]*$
+              ^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.SessionStarted:[1-9][0-9]*$
             description: The schema revision the payload was written with.
           content-type:
             const: application/avro
@@ -75,10 +92,67 @@ components:
       payload:
         schemaFormat: application/vnd.apache.avro;version=1.9.0
         schema:
-          $ref: ./avro/dev.penvire.lab.identity.events.v1.AccessTokenIssued/1.avsc
+          $ref: ./avro/dev.penvire.lab.identity.events.v1.SessionStarted/1.avsc
       bindings:
         kafka:
           key:
             type: string
-            description: The token ID.
+            description: The session ID.
+          bindingVersion: 0.5.0
+    JwkPublished:
+      name: JwkPublished
+      title: JWK published
+      summary: Identity added a public verification key to its JWKS.
+      description: >-
+        The event identifies the new key by `kid`. Consumers can fetch the key
+        from the `jwks_uri` in Identity's OpenID discovery document.
+      contentType: application/avro
+      headers:
+        type: object
+        required:
+          - ce_specversion
+          - ce_id
+          - ce_source
+          - ce_type
+          - ce_subject
+          - ce_time
+          - ce_dataschema
+          - content-type
+        properties:
+          ce_specversion:
+            const: '1.0'
+          ce_id:
+            type: string
+            format: uuid
+            description: UUIDv7 of the event.
+          ce_source:
+            const: /penvire-lab/identity
+          ce_type:
+            const: dev.penvire.lab.identity.jwk-published.v1
+          ce_subject:
+            type: string
+            description: The published key's `kid`.
+          ce_time:
+            type: string
+            format: date-time
+            description: When the key was added to the JWKS.
+          ce_dataschema:
+            type: string
+            pattern: >-
+              ^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.JwkPublished:[1-9][0-9]*$
+            description: The schema revision the payload was written with.
+          content-type:
+            const: application/avro
+          ce_traceparent:
+            type: string
+            description: W3C trace context of the operation that caused the event.
+      payload:
+        schemaFormat: application/vnd.apache.avro;version=1.9.0
+        schema:
+          $ref: ./avro/dev.penvire.lab.identity.events.v1.JwkPublished/1.avsc
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: The published key's `kid`.
           bindingVersion: 0.5.0

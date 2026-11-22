@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "JwkPublished",
+  "namespace": "dev.penvire.lab.identity.events.v1",
+  "doc": "Identity added a public verification key to its JWKS.",
+  "fields": [
+    { "name": "kid", "type": "string", "doc": "The published key's `kid`, matched against the token's `kid` header." }
+  ]
+}
