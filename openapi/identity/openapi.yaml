@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Penvire Lab Identity
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     The lab's own OpenID provider. These endpoints let clients and services
     discover Identity's configuration and the keys that verify its tokens.
