@@ -137,6 +137,14 @@ a:hover { text-decoration: underline; }
 
 .site-footer { padding: 24px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 
+.event-reference pre {
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
 /* Swagger UI: blend into the page */
 .swagger-ui, html.dark-mode .swagger-ui { background: transparent; }
 .swagger-ui, .swagger-ui .info .title, .swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-description,

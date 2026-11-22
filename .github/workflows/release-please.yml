@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       paths_released: ${{ steps.release.outputs.paths_released }}
-      # The merged public API and the Swagger site only change when a service document is released.
+      # Only OpenAPI releases affect the merged public API.
       openapi_released: ${{ contains(steps.release.outputs.paths_released, '"openapi/') }}
     steps:
       # A GitHub App token, because PRs opened with GITHUB_TOKEN don't trigger
@@ -168,9 +168,12 @@ jobs:
           fi
           ./gradlew publishPublicApiPublicationToForgejoRepository -PpublicApiVersion="$VERSION" --console=plain
 
-  swagger-pages:
+  contract-pages:
     needs: [release-please, publish, public-api]
-    if: needs.release-please.outputs.openapi_released == 'true'
+    if: >-
+      !cancelled() && needs.release-please.result == 'success' &&
+      needs.publish.result == 'success' &&
+      (needs.public-api.result == 'success' || needs.public-api.result == 'skipped')
     permissions:
       contents: read
       pages: write
