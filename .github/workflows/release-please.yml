@@ -160,6 +160,15 @@ jobs:
           fi
           ./gradlew publishPublicApiPublicationToForgejoRepository -PpublicApiVersion="$VERSION" --console=plain
 
+  swagger-pages:
+    needs: [release-please, publish, public-api]
+    if: needs.release-please.outputs.paths_released != '' && needs.release-please.outputs.paths_released != '[]'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-swagger-pages.yml
+
   # release-please sets `autorelease: tagged`; this marks the release PR once its packages are uploaded.
   label-published:
     name: Label release PR

@@ -17,7 +17,7 @@ val serviceDocuments = fileTree("openapi") { include("*/openapi.yaml") }
 
 val pnpmInstall by tasks.registering(Exec::class) {
     description = "Installs the Node contract tools."
-    inputs.files("package.json", "pnpm-lock.yaml")
+    inputs.files("package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml")
     outputs.dir("node_modules")
     commandLine("pnpm", "install", "--frozen-lockfile")
 }
