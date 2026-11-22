@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { bundle, extractOpenapiTree, print, run } from '../lib/tools.mjs';
+import { bundle, extractTree, print, run } from '../lib/tools.mjs';
+import { buildEventReference } from './events.mjs';
 
 const output = path.resolve('build/swagger-site');
 const here = (file) => new URL(`./${file}`, import.meta.url);
@@ -14,10 +15,10 @@ const ICONS = {
 };
 
 function releaseTags() {
-  const tags = run('git', ['tag', '--list', 'openapi-*-v*', '--sort=-version:refname']);
+  const tags = run('git', ['tag', '--list', 'openapi-*-v*', 'asyncapi-*-v*', '--sort=-version:refname']);
   return tags.split('\n').flatMap((tag) => {
-    const match = /^openapi-([a-z0-9]+(?:-[a-z0-9]+)*)-v(\d+\.\d+\.\d+)$/.exec(tag);
-    return match ? [{ tag, service: match[1], version: match[2] }] : [];
+    const match = /^(openapi|asyncapi)-([a-z0-9]+(?:-[a-z0-9]+)*)-v(\d+\.\d+\.\d+)$/.exec(tag);
+    return match ? [{ tag, kind: match[1], service: match[2], version: match[3] }] : [];
   });
 }
 
@@ -45,15 +46,22 @@ function serviceCard(service, releases) {
       </div>
       <div class="service-actions">
         <a class="button primary" href="./${latest.tag}/">Open reference</a>
-        <a class="button" href="./${latest.tag}/openapi.yaml" download>${ICONS.download}YAML</a>
+        <a class="button" href="./${latest.tag}/${latest.kind}.yaml" download>${ICONS.download}YAML</a>
       </div>
       ${older.length ? `<div class="older"><span class="older-label">Earlier</span><ul>${olderLinks}</ul></div>` : ''}
     </article>`;
 }
 
-function indexPage(releases) {
+function releaseSection(title, releases) {
   const byService = Map.groupBy(releases, ({ service }) => service);
   const cards = [...byService.keys()].sort().map((service) => serviceCard(service, byService.get(service)));
+  return `<section>
+    <h2>${title}</h2>
+    ${cards.length ? `<div class="services">\n      ${cards.join('\n      ')}\n    </div>` : '<p class="empty">No contracts released yet.</p>'}
+  </section>`;
+}
+
+function indexPage(releases) {
   return `<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
@@ -65,22 +73,27 @@ ${header('./')}
 <main class="container">
   <section class="hero">
     <h1>API reference</h1>
-    <p>Released OpenAPI contracts of the Penvire Lab services, read-only in Swagger UI. Every release keeps its own page and bundled YAML.</p>
+    <p>Read-only references for released Penvire Lab HTTP and event contracts. Every release keeps its own page and downloadable contract files.</p>
   </section>
-  ${cards.length ? `<section class="services">\n    ${cards.join('\n    ')}\n  </section>` : '<p class="empty">No OpenAPI contracts have been released yet.</p>'}
+  ${releaseSection('HTTP APIs · OpenAPI', releases.filter(({ kind }) => kind === 'openapi'))}
+  ${releaseSection('Events · AsyncAPI', releases.filter(({ kind }) => kind === 'asyncapi'))}
 </main>
 <footer class="site-footer"><div class="container"><a href="https://github.com/Penvire/penvire-lab-contracts">penvire-lab-contracts</a> · a learning project, never in production</div></footer>
 </html>
 `;
 }
 
-function versionPage(template, { service, version }) {
+function releaseHeader({ kind, service, version }) {
   const crumbs = `<nav class="crumbs" aria-label="Breadcrumb"><span>/</span><strong>${service}</strong><span class="badge">v${version}</span></nav>`;
-  const actions = `<a class="button" href="../">All releases</a><a class="button" href="./openapi.yaml" download>${ICONS.download}YAML</a>`;
+  const actions = `<a class="button" href="../">All releases</a><a class="button" href="./${kind}.yaml" download>${ICONS.download}YAML</a>`;
+  return header('../', crumbs, actions);
+}
+
+function versionPage(template, release) {
   return template
-    .replaceAll('{{service}}', service)
-    .replaceAll('{{version}}', version)
-    .replace('{{header}}', header('../', crumbs, actions));
+    .replaceAll('{{service}}', release.service)
+    .replaceAll('{{version}}', release.version)
+    .replace('{{header}}', releaseHeader(release));
 }
 
 fs.rmSync(output, { recursive: true, force: true });
@@ -93,10 +106,15 @@ for (const asset of ['site.css', 'theme.js']) fs.copyFileSync(here(asset), path.
 const template = fs.readFileSync(here('version.html'), 'utf8');
 const releases = releaseTags();
 for (const release of releases) {
-  const root = extractOpenapiTree(release.tag, path.resolve('build/swagger-site-source'));
+  const root = extractTree(release.tag, path.resolve('build/swagger-site-source'), [release.kind]);
+  const source = path.join(root, release.kind, release.service);
   const dir = path.join(output, release.tag);
-  bundle(path.join(root, 'openapi', release.service, 'openapi.yaml'), path.join(dir, 'openapi.yaml'));
-  fs.writeFileSync(path.join(dir, 'index.html'), versionPage(template, release));
+  if (release.kind === 'asyncapi') {
+    buildEventReference(source, dir, releaseHeader(release));
+  } else {
+    bundle(path.join(source, 'openapi.yaml'), path.join(dir, 'openapi.yaml'));
+    fs.writeFileSync(path.join(dir, 'index.html'), versionPage(template, release));
+  }
 }
 fs.writeFileSync(path.join(output, 'index.html'), indexPage(releases));
-print(`Built ${releases.length} OpenAPI release pages in ${path.relative('.', output)}`);
+print(`Built ${releases.length} contract release pages in ${path.relative('.', output)}`);
