@@ -42,6 +42,25 @@ For npm, point the scope at the registry in `.npmrc`:
 @penvire-lab:registry=https://git.qf0xb.de/api/packages/penvire/npm/
 ```
 
+## API reference
+
+The Swagger UI landing page lists the latest and earlier OpenAPI releases for
+each service. Each release, such as `openapi-identity-v0.1.0/`, has a read-only
+reference and a downloadable, bundled `openapi.yaml`.
+
+To preview it locally, build the site from Git tags and serve the output:
+
+```bash
+git fetch --tags
+devenv shell -- pnpm install --frozen-lockfile
+devenv shell -- pnpm run swagger-site
+python3 -m http.server 8000 --directory build/swagger-site
+```
+
+Open <http://localhost:8000/>. For the hosted site, set **Settings → Pages → Source**
+to **GitHub Actions** and run **Deploy Swagger Pages** on `main` for the first
+deployment. Later contract releases deploy the site after package publication.
+
 ## Related
 
 - [penvire-lab-backend](https://github.com/Penvire/penvire-lab-backend): services and lab documentation
