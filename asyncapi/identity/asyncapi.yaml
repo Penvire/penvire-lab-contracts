@@ -1,7 +1,7 @@
 asyncapi: 3.1.0
 info:
   title: Penvire Lab Identity events
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     Events Identity publishes. Each event is a CloudEvent in Kafka binary
     content mode: the attributes travel as `ce_` headers and the record value is
@@ -14,16 +14,16 @@ channels:
   session:
     address: identity.session
     description: >-
-      Login sessions Identity establishes. The record key is the session ID,
-      so the events of one session stay in order.
+      Login sessions Identity establishes. The record key is the session ID, so
+      the events of one session stay in order.
     messages:
       sessionStarted:
         $ref: '#/components/messages/SessionStarted'
   jwk:
     address: identity.jwk
     description: >-
-      Public verification keys Identity publishes. The record key is the key
-      ID (`kid`), so the events of one key stay in order.
+      Public verification keys Identity publishes. The record key is the key ID
+      (`kid`), so the events of one key stay in order.
     messages:
       jwkPublished:
         $ref: '#/components/messages/JwkPublished'
