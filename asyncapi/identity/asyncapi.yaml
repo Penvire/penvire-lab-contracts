@@ -1,0 +1,75 @@
+asyncapi: 3.1.0
+info:
+  title: Penvire Lab Identity events
+  version: 0.0.0
+  description: >-
+    Events Identity publishes. Each event is a CloudEvent in Kafka binary
+    content mode: the attributes travel as `ce_` headers and the record value
+    is the Avro-encoded payload alone (ADR 0004 in penvire-lab-backend).
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+defaultContentType: application/avro
+channels:
+  accessToken:
+    address: identity.access-token
+    description: >-
+      Access tokens Identity issued. The record key is the token ID, so the
+      events of one token stay in order.
+    messages:
+      accessTokenIssued:
+        $ref: '#/components/messages/AccessTokenIssued'
+operations:
+  sendAccessTokenIssued:
+    action: send
+    channel:
+      $ref: '#/channels/accessToken'
+    messages:
+      - $ref: '#/channels/accessToken/messages/accessTokenIssued'
+components:
+  messages:
+    AccessTokenIssued:
+      name: AccessTokenIssued
+      title: Access token issued
+      summary: Identity issued an access token.
+      contentType: application/avro
+      headers:
+        type: object
+        required: [ce_specversion, ce_id, ce_source, ce_type, ce_subject, ce_time, ce_dataschema, content-type]
+        properties:
+          ce_specversion:
+            const: '1.0'
+          ce_id:
+            type: string
+            format: uuid
+            description: UUIDv7 of the event.
+          ce_source:
+            const: /penvire-lab/identity
+          ce_type:
+            const: dev.penvire.lab.identity.access-token-issued.v1
+          ce_subject:
+            type: string
+            description: The token ID.
+          ce_time:
+            type: string
+            format: date-time
+            description: When the token was issued.
+          ce_dataschema:
+            type: string
+            pattern: '^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.AccessTokenIssued:[1-9][0-9]*$'
+            description: The schema revision the payload was written with.
+          content-type:
+            const: application/avro
+          ce_traceparent:
+            type: string
+            description: W3C trace context of the operation that caused the event.
+      payload:
+        schemaFormat: application/vnd.apache.avro;version=1.9.0
+        schema:
+          $ref: ./avro/dev.penvire.lab.identity.events.v1.AccessTokenIssued/1.avsc
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: The token ID.
+          bindingVersion: 0.5.0

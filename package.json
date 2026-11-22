@@ -7,13 +7,16 @@
     "node": ">=24"
   },
   "scripts": {
-    "lint": "redocly lint openapi/*/openapi.yaml",
-    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js generator/public-api/test/*.test.js",
+    "lint": "redocly lint openapi/*/openapi.yaml && node generator/asyncapi/lint.mjs",
+    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js generator/public-api/test/*.test.js generator/asyncapi/test/*.test.js",
     "public-api": "node generator/public-api/build.mjs",
     "swagger-site": "node generator/swagger-site/build.mjs",
-    "breaking": "node generator/compat/breaking.mjs"
+    "breaking": "node generator/compat/breaking.mjs",
+    "events:generator-hash": "node generator/asyncapi/lint.mjs --update-generator-hash"
   },
   "devDependencies": {
+    "@asyncapi/avro-schema-parser": "3.1.0",
+    "@asyncapi/parser": "3.6.6",
     "@redocly/cli": "2.82.0",
     "swagger-ui-dist": "5.35.1",
     "typescript": "7.0.2",

@@ -26,6 +26,8 @@ repositories {
 dependencies {
     // Server-to-server client for another service.
     implementation("dev.penvire.lab:identity-client:0.1.0")
+    // Avro classes and schema revisions of another service's events.
+    implementation("dev.penvire.lab:identity-events:0.1.0")
 }
 ```
 
@@ -33,6 +35,7 @@ dependencies {
 | --- | --- |
 | `dev.penvire.lab:<service>-client` | MicroProfile REST client (`@RegisterRestClient(configKey = "<service>")`) with sources |
 | `dev.penvire.lab:<service>-openapi@yaml` | The service's OpenAPI document as one bundled file, for generating its server interfaces |
+| `dev.penvire.lab:<service>-events` | Avro classes for the service's events (latest schema revisions) with sources, and every revision as `avro/<full name>/<revision>.avsc` for decoding by `ce_dataschema` |
 | `dev.penvire.lab:public-api@yaml` | Every `api` and `protocol` operation of every released service, merged: the contract of the public API gateway |
 | `@penvire-lab/api-client` (npm) | TypeScript fetch client for the `api` operations, ESM with type declarations; `protocol` schemas (such as OpenID discovery and JWKS) as types only, since an OIDC library calls those endpoints |
 

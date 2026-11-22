@@ -9,22 +9,32 @@ export function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], ...options });
 }
 
-/** Service names with an `openapi/<name>/openapi.yaml` below `root`. */
-export function services(root) {
-  const dir = path.join(root, 'openapi');
+function documentDirs(root, kind) {
+  const dir = path.join(root, kind);
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter((name) => fs.existsSync(path.join(dir, name, 'openapi.yaml'))).sort();
+  return fs.readdirSync(dir).filter((name) => fs.existsSync(path.join(dir, name, `${kind}.yaml`))).sort();
 }
 
-/** Writes `ref`'s `openapi/` tree to `target`, keeping relative refs intact. */
-export function extractOpenapiTree(ref, target) {
+/** Service names with an `openapi/<name>/openapi.yaml` below `root`. */
+export const services = (root) => documentDirs(root, 'openapi');
+
+/** Service names with an `asyncapi/<name>/asyncapi.yaml` below `root`. */
+export const eventServices = (root) => documentDirs(root, 'asyncapi');
+
+/** Writes the given top-level directories of `ref` to `target`, keeping relative refs intact. */
+export function extractTree(ref, target, dirs) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.mkdirSync(target, { recursive: true });
-  if (run('git', ['ls-tree', '--name-only', ref, 'openapi']).trim()) {
-    execFileSync('tar', ['-x', '-C', target], { input: execFileSync('git', ['archive', ref, 'openapi']) });
+  for (const dir of dirs) {
+    if (run('git', ['ls-tree', '--name-only', ref, dir]).trim()) {
+      execFileSync('tar', ['-x', '-C', target], { input: execFileSync('git', ['archive', ref, dir]) });
+    }
   }
   return target;
 }
+
+/** Writes `ref`'s `openapi/` tree to `target`, keeping relative refs intact. */
+export const extractOpenapiTree = (ref, target) => extractTree(ref, target, ['openapi']);
 
 /** Bundles a document into one file with Redocly; extra flags such as `--dereferenced` pass through. */
 export function bundle(source, target, flags = []) {

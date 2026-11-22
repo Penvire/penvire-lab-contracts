@@ -66,6 +66,16 @@
           "jsonpath": "$.info.version"
         }
       ]
+    },
+    "asyncapi/identity": {
+      "component": "asyncapi-identity",
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "asyncapi.yaml",
+          "jsonpath": "$.info.version"
+        }
+      ]
     }
   }
 }
