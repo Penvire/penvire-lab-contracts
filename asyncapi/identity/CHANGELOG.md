@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/Penvire/penvire-lab-contracts/compare/asyncapi-identity-v0.1.0...asyncapi-identity-v0.2.0) (2026-11-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* **identity:** replace token issuance with session start
+
+### Features
+
+* **identity:** add JWK publication event ([87071d9](https://github.com/Penvire/penvire-lab-contracts/commit/87071d9c289286792352992ce3a0968fa7a31347))
+* **identity:** replace token issuance with session start ([87071d9](https://github.com/Penvire/penvire-lab-contracts/commit/87071d9c289286792352992ce3a0968fa7a31347))
+
 ## 0.1.0 (2026-11-22)
 
 
