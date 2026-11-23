@@ -1,5 +1,7 @@
 // Penvire rules for AsyncAPI documents (ADR 0004 in penvire-lab-backend): CloudEvents in Kafka
-// binary content mode, Avro payloads from numbered schema revisions, one topic per aggregate type.
+// binary content mode, Avro payloads from numbered schema revisions, one topic per aggregate type;
+// and for audit events (ADR 0006) one shared record shape on one `<service>.audit` topic.
+import { isDeepStrictEqual } from 'node:util';
 
 export const REQUIRED_HEADERS = [
   'ce_specversion', 'ce_id', 'ce_source', 'ce_type', 'ce_subject', 'ce_time', 'ce_dataschema', 'content-type',
@@ -64,6 +66,61 @@ function messageProblems(service, name, message, latestRevision) {
   }
   if (header('ce_dataschema').pattern !== dataschemaPattern(fullName)) {
     problems.push(`${at}: ce_dataschema must have pattern '${dataschemaPattern(fullName)}'`);
+  }
+  return problems;
+}
+
+export const AUDIT_MESSAGE = 'AuditRecorded';
+
+/** The full name of a service's audit record (ADR 0006). */
+export const auditFullName = (service) => `dev.penvire.lab.${service}.events.v1.${AUDIT_MESSAGE}`;
+
+/**
+ * Every service records audit events (ADR 0006), so every service with an OpenAPI document needs
+ * an AsyncAPI document too. Returns one problem per service that lacks it.
+ */
+export function missingAuditProducers(apiServices, eventServices) {
+  return apiServices.filter((service) => !eventServices.includes(service)).map((service) =>
+    `asyncapi/${service}/asyncapi.yaml is missing: every service records audit events (ADR 0006), `
+    + 'so it needs an AsyncAPI document with an audit channel; copy Identity\'s');
+}
+
+/**
+ * Problems with a service's audit events (ADR 0006), as readable lines: every service sends
+ * `AuditRecorded`, alone, on `<service>.audit`, and the latest revision of its record is the shared
+ * definition (`shared`, without a namespace) in the service's namespace. `latestSchema` is that
+ * revision's parsed JSON, or undefined when there is none.
+ */
+export function auditRules(service, document, shared, latestSchema) {
+  const problems = [];
+  const address = `${service}.audit`;
+  const ref = `#/components/messages/${AUDIT_MESSAGE}`;
+  const channels = Object.entries(document?.channels ?? {});
+  const audit = channels.filter(([, channel]) => channel?.address === address);
+  if (audit.length !== 1) {
+    problems.push(`channels: exactly one channel must have address ${address}, found ${audit.length}`);
+  }
+  for (const [id, channel] of channels) {
+    const refs = Object.values(channel?.messages ?? {}).map((message) => message?.$ref);
+    if (channel?.address === address && (refs.length !== 1 || refs[0] !== ref)) {
+      problems.push(`channel ${id}: ${address} must carry ${AUDIT_MESSAGE} and nothing else`);
+    } else if (channel?.address !== address && refs.includes(ref)) {
+      problems.push(`channel ${id}: ${AUDIT_MESSAGE} may only be sent on ${address}`);
+    }
+  }
+  if (document?.components?.messages?.[AUDIT_MESSAGE] === undefined) {
+    problems.push(`components.messages: must define ${AUDIT_MESSAGE}`);
+  }
+
+  const fullName = auditFullName(service);
+  if (latestSchema === undefined) {
+    problems.push(`schema ${fullName} has no revisions`);
+    return problems;
+  }
+  const { namespace, ...rest } = latestSchema;
+  if (namespace !== fullName.slice(0, fullName.lastIndexOf('.')) || !isDeepStrictEqual(rest, shared)) {
+    problems.push(`schema ${fullName}: the latest revision differs from asyncapi/audit-recorded.avsc; `
+      + 'add a revision that copies it, with only the namespace added');
   }
   return problems;
 }

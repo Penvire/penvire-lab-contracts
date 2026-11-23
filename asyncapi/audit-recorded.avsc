@@ -1,0 +1,51 @@
+{
+  "type": "record",
+  "name": "AuditRecorded",
+  "doc": "A service recorded a security-relevant action: who did what to which resource, and with what outcome (ADR 0006 in penvire-lab-backend). The event's time is when the action ended; tenant-scoped actions carry the `tenantid` attribute.",
+  "fields": [
+    { "name": "action", "type": "string", "doc": "`<service>.<resource>.<verb>`, for example `identity.access-token.issue`." },
+    {
+      "name": "outcome",
+      "type": {
+        "type": "enum",
+        "name": "AuditOutcome",
+        "doc": "`DENIED`: refused by an authorization or validation rule. `FAILED`: an error stopped it.",
+        "symbols": ["SUCCESS", "DENIED", "FAILED"]
+      },
+      "doc": "How the action ended."
+    },
+    {
+      "name": "actorType",
+      "type": {
+        "type": "enum",
+        "name": "AuditActorType",
+        "doc": "`CLIENT`: a client acting for itself, including another service. `SYSTEM`: the service on its own, for example a scheduled job. `ANONYMOUS`: the caller is not authenticated.",
+        "symbols": ["USER", "CLIENT", "SYSTEM", "ANONYMOUS"]
+      },
+      "doc": "Who performed the action."
+    },
+    { "name": "actorId", "type": ["null", "string"], "doc": "The user's `sub` or the client's `client_id`; null for `SYSTEM` and `ANONYMOUS`." },
+    { "name": "clientId", "type": ["null", "string"], "doc": "The client a user acted through." },
+    { "name": "targetType", "type": "string", "doc": "The kind of resource acted on, for example `access-token`." },
+    { "name": "targetId", "type": ["null", "string"], "doc": "The resource's ID; null when the action was refused before a resource existed." },
+    { "name": "reason", "type": ["null", "string"], "doc": "A machine-readable reason code for `DENIED` and `FAILED`, for example `invalid_client`." },
+    {
+      "name": "changes",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "AuditChange",
+          "doc": "One field the action changed.",
+          "fields": [
+            { "name": "fieldPath", "type": "string", "doc": "The field's path; nested fields use dotted paths." },
+            { "name": "oldValue", "type": ["null", "string"], "doc": "The value before, as JSON text; null when not recorded." },
+            { "name": "newValue", "type": ["null", "string"], "doc": "The value after, as JSON text; null when not recorded." }
+          ]
+        }
+      },
+      "default": [],
+      "doc": "The fields the action changed; a field recorded by path alone has both values null."
+    }
+  ]
+}
