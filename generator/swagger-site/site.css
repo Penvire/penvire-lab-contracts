@@ -137,12 +137,46 @@ a:hover { text-decoration: underline; }
 
 .site-footer { padding: 24px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 
+/* Event reference */
+.event-reference { padding-bottom: 64px; }
+.event-reference h2 { margin: 40px 0 16px; font-size: 22px; }
+.event-reference h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 18px; }
+.event-reference h4 { margin: 0 0 6px; font-size: 16px; }
+.event-reference h5 { margin: 20px 0 8px; font-size: 14px; }
+.event-reference code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.event-reference h3 code { font-size: 17px; font-weight: 600; }
+.event-reference h5 code { font-size: 14px; font-weight: 600; }
+.event-reference .pattern code { color: var(--muted); font-size: 12px; }
+.event-reference .muted { color: var(--muted); font-weight: 400; }
+.event-reference .summary { color: var(--muted); }
+.toc { display: flex; align-items: baseline; gap: 12px; font-size: 14px; }
+.toc ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.channel, .schema {
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.message { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.event-reference table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.event-reference th, .event-reference td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.event-reference th { color: var(--muted); font-weight: 600; }
+.event-reference td:first-child { white-space: nowrap; }
+.event-reference .pattern { overflow-wrap: anywhere; }
+.required { color: var(--accent); font-size: 12px; }
+.symbols { display: flex; flex-wrap: wrap; gap: 8px; }
+.symbols code { padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
+.event-reference details { margin-top: 8px; }
+.event-reference summary { cursor: pointer; }
+.event-reference summary a { margin-left: 8px; font-size: 13px; }
 .event-reference pre {
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--bg);
 }
 
 /* Swagger UI: blend into the page */
