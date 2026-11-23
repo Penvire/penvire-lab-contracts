@@ -8,7 +8,7 @@
   },
   "scripts": {
     "lint": "redocly lint openapi/*/openapi.yaml && node generator/asyncapi/lint.mjs",
-    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js generator/public-api/test/*.test.js generator/asyncapi/test/*.test.js",
+    "test": "node --test generator/redocly/test/*.test.js generator/compat/test/*.test.js generator/public-api/test/*.test.js generator/asyncapi/test/*.test.js generator/swagger-site/test/*.test.js",
     "public-api": "node generator/public-api/build.mjs",
     "swagger-site": "node generator/swagger-site/build.mjs",
     "breaking": "node generator/compat/breaking.mjs",
