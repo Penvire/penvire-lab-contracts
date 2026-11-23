@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Penvire/penvire-lab-contracts/compare/asyncapi-identity-v0.2.0...asyncapi-identity-v0.2.1) (2026-11-23)
+
+
+### Features
+
+* **identity:** record audit events on identity.audit ([#28](https://github.com/Penvire/penvire-lab-contracts/issues/28)) ([41aee07](https://github.com/Penvire/penvire-lab-contracts/commit/41aee0753369e9f582289e61277af7ecfaa9a60b))
+
 ## [0.2.0](https://github.com/Penvire/penvire-lab-contracts/compare/asyncapi-identity-v0.1.0...asyncapi-identity-v0.2.0) (2026-11-22)
 
 
