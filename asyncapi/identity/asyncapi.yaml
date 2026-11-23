@@ -1,7 +1,7 @@
 asyncapi: 3.1.0
 info:
   title: Penvire Lab Identity events
-  version: 0.2.0
+  version: 0.2.1
   description: >-
     Events Identity publishes. Each event is a CloudEvent in Kafka binary
     content mode: the attributes travel as `ce_` headers and the record value is
