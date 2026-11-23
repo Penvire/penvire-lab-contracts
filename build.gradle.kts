@@ -40,6 +40,8 @@ val lintEvents by tasks.registering(Exec::class) {
     inputs.files(
         eventDocuments,
         fileTree("asyncapi") { include("*/generator.sha256") },
+        "asyncapi/audit-recorded.avsc",
+        serviceDocuments,
         fileTree("generator/asyncapi"),
         fileTree("generator/avro/src/main"),
         "generator/avro/build.gradle.kts",

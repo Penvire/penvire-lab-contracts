@@ -27,6 +27,17 @@ channels:
     messages:
       jwkPublished:
         $ref: '#/components/messages/JwkPublished'
+  audit:
+    address: identity.audit
+    description: >-
+      Audit events Identity records for its security-relevant actions, including
+      refused and failed ones (ADR 0006 in penvire-lab-backend). The record key
+      is the target's ID, or the actor's ID when there is no target, so the
+      events about one resource stay in order. When there is neither, the key is
+      the event ID.
+    messages:
+      auditRecorded:
+        $ref: '#/components/messages/AuditRecorded'
 operations:
   sendSessionStarted:
     action: send
@@ -40,6 +51,12 @@ operations:
       $ref: '#/channels/jwk'
     messages:
       - $ref: '#/channels/jwk/messages/jwkPublished'
+  sendAuditRecorded:
+    action: send
+    channel:
+      $ref: '#/channels/audit'
+    messages:
+      - $ref: '#/channels/audit/messages/auditRecorded'
 components:
   messages:
     SessionStarted:
@@ -155,4 +172,72 @@ components:
           key:
             type: string
             description: The published key's `kid`.
+          bindingVersion: 0.5.0
+    AuditRecorded:
+      name: AuditRecorded
+      title: Audit recorded
+      summary: Identity recorded a security-relevant action and its outcome.
+      description: >-
+        Recorded through the outbox: in the action's transaction when it
+        succeeds, and in a new transaction after it was refused or failed. The
+        payload has the same shape in every service
+        (`asyncapi/audit-recorded.avsc`); only the namespace differs.
+      contentType: application/avro
+      headers:
+        type: object
+        required:
+          - ce_specversion
+          - ce_id
+          - ce_source
+          - ce_type
+          - ce_subject
+          - ce_time
+          - ce_dataschema
+          - content-type
+        properties:
+          ce_specversion:
+            const: '1.0'
+          ce_id:
+            type: string
+            format: uuid
+            description: UUIDv7 of the event.
+          ce_source:
+            const: /penvire-lab/identity
+          ce_type:
+            const: dev.penvire.lab.identity.audit-recorded.v1
+          ce_subject:
+            type: string
+            description: >-
+              The payload's `targetId`, or its `actorId` when there is no
+              target, or the event ID (`ce_id`) when there is neither.
+          ce_time:
+            type: string
+            format: date-time
+            description: When the action ended.
+          ce_dataschema:
+            type: string
+            pattern: >-
+              ^urn:penvire-lab:schema:dev\.penvire\.lab\.identity\.events\.v1\.AuditRecorded:[1-9][0-9]*$
+            description: The schema revision the payload was written with.
+          content-type:
+            const: application/avro
+          ce_tenantid:
+            type: string
+            description: >-
+              The tenant a tenant-scoped action belongs to. Absent for
+              platform-scoped actions.
+          ce_traceparent:
+            type: string
+            description: W3C trace context of the operation that caused the event.
+      payload:
+        schemaFormat: application/vnd.apache.avro;version=1.9.0
+        schema:
+          $ref: ./avro/dev.penvire.lab.identity.events.v1.AuditRecorded/1.avsc
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: >-
+              The payload's `targetId`, or its `actorId` when there is no
+              target, or the event ID (`ce_id`) when there is neither.
           bindingVersion: 0.5.0

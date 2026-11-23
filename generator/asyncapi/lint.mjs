@@ -1,5 +1,6 @@
 // Validates every asyncapi/<service>/asyncapi.yaml with the AsyncAPI parser and checks the
-// Penvire event rules and the recorded generator hash. Avro schemas themselves are checked by the
+// Penvire event rules (including the shared audit record, asyncapi/audit-recorded.avsc) and the
+// recorded generator hash. Avro schemas themselves are checked by the
 // Gradle build (generator/avro), with the same Avro library the services decode with.
 //
 //   --update-generator-hash  rewrite asyncapi/<service>/generator.sha256 after a generator change
@@ -8,9 +9,9 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { Parser, fromFile } from '@asyncapi/parser';
 import { AvroSchemaParser } from '@asyncapi/avro-schema-parser';
-import { eventServices, print } from '../lib/tools.mjs';
+import { eventServices, print, services as apiServices } from '../lib/tools.mjs';
 import { GENERATOR_SOURCES, generatorHash, staleServices } from './generator-hash.js';
-import { eventRules } from './rules.js';
+import { auditFullName, auditRules, eventRules, missingAuditProducers } from './rules.js';
 
 const ERROR = 0;
 
@@ -27,6 +28,16 @@ function latestRevisions(service) {
       .map(Number);
     return revisions.length > 0 ? Math.max(...revisions) : undefined;
   };
+}
+
+const SHARED_AUDIT_FILE = path.join('asyncapi', 'audit-recorded.avsc');
+const sharedAudit = JSON.parse(fs.readFileSync(SHARED_AUDIT_FILE, 'utf8'));
+
+function latestAuditSchema(service) {
+  const fullName = auditFullName(service);
+  const revision = latestRevisions(service)(fullName);
+  if (revision === undefined) return undefined;
+  return JSON.parse(fs.readFileSync(path.join('asyncapi', service, 'avro', fullName, `${revision}.avsc`), 'utf8'));
 }
 
 function generatorFiles() {
@@ -54,13 +65,23 @@ const recorded = Object.fromEntries(services.map((service) =>
 const stale = new Set(staleServices(recorded, currentHash));
 
 let failed = false;
+if (sharedAudit.namespace !== undefined) {
+  failed = true;
+  console.error(`${SHARED_AUDIT_FILE}: must have no namespace; each service copy adds its own`);
+}
+for (const problem of missingAuditProducers(apiServices('.'), services)) {
+  failed = true;
+  console.error(problem);
+}
 for (const service of services) {
   const file = path.join('asyncapi', service, 'asyncapi.yaml');
   const { diagnostics } = await fromFile(parser, file).parse();
   const problems = diagnostics
     .filter((diagnostic) => diagnostic.severity === ERROR)
     .map((diagnostic) => `${diagnostic.message} at #/${diagnostic.path.join('/')}`);
-  problems.push(...eventRules(service, YAML.parse(fs.readFileSync(file, 'utf8')), latestRevisions(service)));
+  const document = YAML.parse(fs.readFileSync(file, 'utf8'));
+  problems.push(...eventRules(service, document, latestRevisions(service)));
+  problems.push(...auditRules(service, document, sharedAudit, latestAuditSchema(service)));
   if (stale.has(service)) {
     problems.push(`${hashFile(service)} is out of date: the generator changed, so ${service}-events must be released. `
       + 'Run `pnpm run events:generator-hash` and commit with a `fix` or `feat` title.');

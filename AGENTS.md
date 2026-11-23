@@ -12,6 +12,7 @@ openapi/scopes.yaml              scope catalogue for x-penvire-scopes
 openapi/workloads.yaml           workload catalogue for x-penvire-callers
 asyncapi/<service>/asyncapi.yaml one AsyncAPI document per event-publishing service; one release component and one <service>-events package each
 asyncapi/<service>/avro/         Avro schema revisions: <full name>/<revision>.avsc, immutable once merged
+asyncapi/audit-recorded.avsc     shared AuditRecorded definition, without a namespace; every service's latest revision must match it
 generator/redocly/               Penvire lint rules (Redocly plugin) and their fixture tests
 generator/compat/                breaking-change check (service and AsyncAPI documents, frozen revisions) and the pinned openapi-changes version
 generator/asyncapi/              AsyncAPI validation and the Penvire event rules
@@ -33,9 +34,9 @@ Git hooks run automatically: a commit-msg hook rejects messages that are not Con
 - `pnpm run lint` and `pnpm test`: the Node half on its own.
 - `pnpm run breaking`: compares every service document with the merge base of `origin/main` and lists breaking changes: openapi-changes' structural diff plus Penvire rules (audience changed, scope added, caller removed, parameter became required). It also compares every AsyncAPI document (a removed channel, or an event type no longer sent on a channel, is breaking) and fails outright when a schema revision that exists on the base was changed or deleted. The **Breaking changes** workflow runs it on every pull request and fails when it finds any and the title has no `!`.
 
-A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
+A new service needs `openapi/<service>/openapi.yaml` with `info.version: 0.0.0`. Gradle picks it up automatically. Every service records audit events (ADR 0006), so lint also requires its `asyncapi/<service>/asyncapi.yaml`, set up as below. It must also be registered in `release-please-config.json` and `.release-please-manifest.json`; most services already are.
 
-A service that publishes events needs `asyncapi/<service>/asyncapi.yaml` with `info.version: 0.0.0` and at least one schema revision; Gradle adds `:<service>-events` automatically. Register `asyncapi/<service>` (component `asyncapi-<service>`) in both release-please files and record the generator hash with `pnpm run events:generator-hash`.
+A service that publishes events needs `asyncapi/<service>/asyncapi.yaml` with `info.version: 0.0.0`, an `audit` channel with `AuditRecorded` (copy Identity's) and its schema revision; Gradle adds `:<service>-events` automatically. Register `asyncapi/<service>` (component `asyncapi-<service>`) in both release-please files and record the generator hash with `pnpm run events:generator-hash`.
 
 A change below `generator/avro/` changes the generated classes, but release-please only releases components whose path a commit touches. So each `asyncapi/<service>/generator.sha256` holds a hash of the generator, and `pnpm run lint` fails until `pnpm run events:generator-hash` updates it. Give that PR a `fix` or `feat` title, so the event packages are released.
 
@@ -63,6 +64,7 @@ Decided in ADR 0004 of `penvire-lab-backend`, enforced by `generator/asyncapi/ru
 - One channel per aggregate type, addressed `<service>.<aggregate>`, e.g. `identity.access-token`. Channel messages `$ref` component messages.
 - Payloads are Avro records named `dev.penvire.lab.<service>.events.v<major>.<RecordName>`, stored as `avro/<full name>/<revision>.avsc`. `ce_type` repeats the record name in kebab case and the same major. The message references the latest revision; `ce_dataschema` is `urn:penvire-lab:schema:<full name>:<revision>`, the revision the producer wrote with.
 - Revisions start at 1, have no gaps, and each one reads every earlier one (backward transitive). A value keeps its logical type (and decimal precision and scale) in every revision, which Avro's own check does not enforce. A merged revision never changes: change a schema by adding the next revision. An incompatible change is a new major: a new record name, a new `ce_type` and a new channel.
+- Audit events (ADR 0006): every service sends `AuditRecorded` (`dev.penvire.lab.<service>.events.v1.AuditRecorded`), and nothing else, on its own channel `<service>.audit`, the one exception to one channel per aggregate. The record key and `ce_subject` are the target's ID, else the actor's ID, else the event ID (`ce_id`); tenant-scoped actions add `ce_tenantid`. Its latest revision must equal `asyncapi/audit-recorded.avsc` with only the namespace added. To change the shape, edit that file and add the next revision to every service in the same pull request.
 - `<service>-events` contains the classes generated from the latest revisions and every revision as the resource `avro/<full name>/<revision>.avsc`, so a consumer finds the writer schema from `ce_dataschema` alone.
 - A producer always writes the latest revision in the `<service>-events` version it depends on. Raising that dependency is how it moves to a new revision, and it waits until every consumer depends on a version that contains it.
 

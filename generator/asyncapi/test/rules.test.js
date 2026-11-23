@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dataschemaPattern, eventRules, kebab } from '../rules.js';
+import { auditRules, dataschemaPattern, eventRules, kebab, missingAuditProducers } from '../rules.js';
 
 const FULL_NAME = 'dev.penvire.lab.identity.events.v1.KeyActivated';
 
@@ -129,5 +129,71 @@ test('Avro content type and a Kafka record key', () => {
   assert.deepEqual(eventRules('identity', document(message({ contentType: 'application/json', bindings: {} })), onDisk), [
     'message KeyActivated: contentType must be application/avro',
     'message KeyActivated: bindings.kafka.key must describe the record key (the aggregate ID)',
+  ]);
+});
+
+const SHARED_AUDIT = {
+  type: 'record',
+  name: 'AuditRecorded',
+  fields: [
+    { name: 'action', type: 'string' },
+    { name: 'outcome', type: { type: 'enum', name: 'AuditOutcome', symbols: ['SUCCESS', 'DENIED', 'FAILED'] } },
+  ],
+};
+const AUDIT_NAMESPACE = 'dev.penvire.lab.identity.events.v1';
+const auditCopy = (overrides = {}) => ({ namespace: AUDIT_NAMESPACE, ...structuredClone(SHARED_AUDIT), ...overrides });
+
+function auditDocument() {
+  const doc = document();
+  doc.channels.audit = { address: 'identity.audit', messages: { auditRecorded: { $ref: '#/components/messages/AuditRecorded' } } };
+  doc.components.messages.AuditRecorded = {};
+  return doc;
+}
+
+test('a service sending AuditRecorded on its audit channel has no audit problems', () => {
+  assert.deepEqual(auditRules('identity', auditDocument(), SHARED_AUDIT, auditCopy()), []);
+});
+
+test('every service has one audit channel and defines AuditRecorded', () => {
+  assert.deepEqual(auditRules('identity', document(), SHARED_AUDIT, auditCopy()), [
+    'channels: exactly one channel must have address identity.audit, found 0',
+    'components.messages: must define AuditRecorded',
+  ]);
+});
+
+test('the audit channel carries AuditRecorded alone, and nothing else carries it', () => {
+  const doc = auditDocument();
+  doc.channels.audit.messages.keyActivated = { $ref: '#/components/messages/KeyActivated' };
+  doc.channels.signingKey.messages.auditRecorded = { $ref: '#/components/messages/AuditRecorded' };
+  assert.deepEqual(auditRules('identity', doc, SHARED_AUDIT, auditCopy()), [
+    'channel signingKey: AuditRecorded may only be sent on identity.audit',
+    'channel audit: identity.audit must carry AuditRecorded and nothing else',
+  ]);
+});
+
+test('the latest AuditRecorded revision is the shared definition in the service namespace', () => {
+  const differs = 'schema dev.penvire.lab.identity.events.v1.AuditRecorded: the latest revision differs from '
+    + 'asyncapi/audit-recorded.avsc; add a revision that copies it, with only the namespace added';
+  const reordered = auditCopy();
+  reordered.fields[1].type = { symbols: ['SUCCESS', 'DENIED', 'FAILED'], name: 'AuditOutcome', type: 'enum' };
+  assert.deepEqual(auditRules('identity', auditDocument(), SHARED_AUDIT, reordered), []);
+
+  const extraSymbol = auditCopy();
+  extraSymbol.fields[1].type.symbols.push('SKIPPED');
+  assert.deepEqual(auditRules('identity', auditDocument(), SHARED_AUDIT, extraSymbol), [differs]);
+  assert.deepEqual(auditRules('identity', auditDocument(), SHARED_AUDIT, auditCopy({ doc: 'Mine.' })), [differs]);
+  assert.deepEqual(
+    auditRules('identity', auditDocument(), SHARED_AUDIT, auditCopy({ namespace: 'dev.penvire.lab.tenant.events.v1' })),
+    [differs]);
+  assert.deepEqual(auditRules('identity', auditDocument(), SHARED_AUDIT, undefined), [
+    'schema dev.penvire.lab.identity.events.v1.AuditRecorded has no revisions',
+  ]);
+});
+
+test('every service with an OpenAPI document has an AsyncAPI document for its audit events', () => {
+  assert.deepEqual(missingAuditProducers(['identity'], ['identity']), []);
+  assert.deepEqual(missingAuditProducers(['identity', 'tenant'], ['identity']), [
+    'asyncapi/tenant/asyncapi.yaml is missing: every service records audit events (ADR 0006), '
+      + "so it needs an AsyncAPI document with an audit channel; copy Identity's",
   ]);
 });
