@@ -176,8 +176,8 @@ importers:
         specifier: 2.82.0
         version: 2.82.0
       swagger-ui-dist:
-        specifier: 5.35.1
-        version: 5.35.1
+        specifier: 5.36.0
+        version: 5.36.0
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -884,8 +884,8 @@ packages:
     resolution: {integrity: sha512-UXSH262CSZY1tfu3G3Secr6uGLCFVPMhIqHjlgCUtCCcgihYc/xKs9djMTMUOb2j1mVSeU8EU6NWc/iQKU6Gfg==}
     engines: {node: '>= 0.4'}
 
-  swagger-ui-dist@5.35.1:
-    resolution: {integrity: sha512-XPBzLiPyIvwg2KYyNZIxOVS77pD0SNMbiSIwvpPXbU5bC/F4zvXxGraK3Hpyxug1b89fH5T29gSsW6rBxMmPyg==}
+  swagger-ui-dist@5.36.0:
+    resolution: {integrity: sha512-Lt6/Kb0gXmLdiabLhvso4VdJP9V7qJWB0zh0gzeXUV3+CMOTzMmvpJRSXN7EAjfwixwmoi9ezDbLHiexC7lA9A==}
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
@@ -1824,7 +1824,7 @@ snapshots:
       define-properties: 1.2.1
       es-object-atoms: 1.1.2
 
-  swagger-ui-dist@5.35.1:
+  swagger-ui-dist@5.36.0:
     dependencies:
       '@scarf/scarf': 1.4.0
 
