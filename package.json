@@ -17,7 +17,7 @@
   "devDependencies": {
     "@asyncapi/avro-schema-parser": "3.1.0",
     "@asyncapi/parser": "3.6.6",
-    "@redocly/cli": "2.82.0",
+    "@redocly/cli": "2.83.0",
     "swagger-ui-dist": "5.35.1",
     "typescript": "7.0.2",
     "yaml": "2.9.1"
