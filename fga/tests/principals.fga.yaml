@@ -1,0 +1,24 @@
+name: Principal separation smoke test
+model: |
+  model
+    schema 1.1
+  type user
+  type client
+  type resource
+    relations
+      define reader: [user, client]
+tuples:
+  - user: user:alice
+    relation: reader
+    object: resource:sample
+tests:
+  - name: A client cannot use the grant of a user with the same identifier
+    check:
+      - user: user:alice
+        object: resource:sample
+        assertions:
+          reader: true
+      - user: client:alice
+        object: resource:sample
+        assertions:
+          reader: false
