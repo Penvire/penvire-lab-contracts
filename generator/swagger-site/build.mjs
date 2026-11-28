@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { parse } from 'yaml';
 import { bundle, extractTree, print, run } from '../lib/tools.mjs';
 import { buildEventReference } from './events.mjs';
+import { checkPlatform } from './fga-check.js';
 
 const output = path.resolve('build/swagger-site');
 const here = (file) => new URL(`./${file}`, import.meta.url);
@@ -77,11 +79,7 @@ ${header('./')}
   </section>
   ${releaseSection('HTTP APIs · OpenAPI', releases.filter(({ kind }) => kind === 'openapi'))}
   ${releaseSection('Events · AsyncAPI', releases.filter(({ kind }) => kind === 'asyncapi'))}
-  <section>
-    <h2>Authorization · OpenFGA</h2>
-    <p>Browse the shared model from <code>main</code> and try sample grants.</p>
-    <a class="button primary" href="./fga/">Open reference</a>
-  </section>
+  ${fs.readFileSync(here('playground.html'), 'utf8')}
 </main>
 <footer class="site-footer"><div class="container"><a href="https://github.com/Penvire/penvire-lab-contracts">penvire-lab-contracts</a> · a learning project, never in production</div></footer>
 </html>
@@ -99,6 +97,22 @@ function buildFgaReference(dir) {
   fs.writeFileSync(path.join(dir, 'index.html'), page
     .replace('{{header}}', header('../'))
     .replace('{{model}}', () => model));
+
+  const compiled = JSON.parse(run('bash', ['fga/cli.sh', 'model', 'transform', '--file', 'fga.mod', '--output-format', 'json']));
+  const platform = compiled.type_definitions.find(({ type }) => type === 'platform');
+  const { tuples, tests } = parse(fs.readFileSync(path.join(dir, 'platform.fga.yaml'), 'utf8'));
+  for (const test of tests) {
+    for (const { user, users = [user], object, assertions } of test.check) {
+      for (const subject of users) {
+        for (const [relation, expected] of Object.entries(assertions)) {
+          if (checkPlatform(platform, tuples, subject, relation, object) !== expected) {
+            throw new Error(`Playground disagrees with contract: ${subject} ${relation} ${object}`);
+          }
+        }
+      }
+    }
+  }
+  fs.writeFileSync(path.join(dir, 'playground.json'), JSON.stringify({ platform, tuples }));
 }
 
 function releaseHeader({ kind, service, version }) {
@@ -119,7 +133,9 @@ fs.mkdirSync(path.join(output, 'assets'), { recursive: true });
 for (const asset of ['swagger-ui.css', 'swagger-ui-bundle.js', 'LICENSE', 'NOTICE']) {
   fs.copyFileSync(require.resolve(`swagger-ui-dist/${asset}`), path.join(output, 'assets', asset));
 }
-for (const asset of ['site.css', 'theme.js']) fs.copyFileSync(here(asset), path.join(output, 'assets', asset));
+for (const asset of ['site.css', 'theme.js', 'playground.js', 'fga-check.js']) {
+  fs.copyFileSync(here(asset), path.join(output, 'assets', asset));
+}
 
 const template = fs.readFileSync(here('version.html'), 'utf8');
 const releases = releaseTags();

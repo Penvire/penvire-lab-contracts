@@ -1,0 +1,26 @@
+<section id="fga-playground">
+  <h2>Authorization · OpenFGA Playground</h2>
+  <p>Check who can do what on <code>platform:global</code>. Edit the sample grants and run checks in your browser.</p>
+  <article class="service">
+    <form id="fga-check">
+      <fieldset disabled>
+        <div class="playground-fields">
+          <label>Subject<input name="subject" value="user:reader" required></label>
+          <label>Relation<select name="relation"></select></label>
+        </div>
+        <label>Direct grants (one <code>subject relation</code> pair per line)
+          <textarea name="grants" rows="7" spellcheck="false"></textarea>
+        </label>
+        <div class="service-actions">
+          <button class="button primary" type="submit">Run check</button>
+          <button class="button" type="reset">Reset sample</button>
+          <a class="button" href="./fga/">Model reference</a>
+        </div>
+      </fieldset>
+      <p><output role="status">Loading sample grants…</output></p>
+    </form>
+    <noscript>Enable JavaScript to run checks, or open the <a href="./fga/">model reference</a>.</noscript>
+    <p>Demo evaluator for this platform model. Edits stay in this page.</p>
+  </article>
+  <script type="module" src="./assets/playground.js"></script>
+</section>

@@ -179,6 +179,20 @@ a:hover { text-decoration: underline; }
   background: var(--bg);
 }
 
+#fga-check fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+#fga-check label { display: grid; gap: 6px; margin-bottom: 12px; }
+#fga-check :is(input, select, textarea) {
+  width: 100%;
+  padding: 8px;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+#fga-check textarea { font-family: ui-monospace, monospace; resize: vertical; }
+.playground-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 12px; }
+
 /* Swagger UI: blend into the page */
 .swagger-ui, html.dark-mode .swagger-ui { background: transparent; }
 .swagger-ui, .swagger-ui .info .title, .swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-description,
