@@ -171,7 +171,7 @@ a:hover { text-decoration: underline; }
 .event-reference details { margin-top: 8px; }
 .event-reference summary { cursor: pointer; }
 .event-reference summary a { margin-left: 8px; font-size: 13px; }
-.event-reference pre {
+.event-reference pre, .fga-reference pre {
   overflow: auto;
   padding: 16px;
   border: 1px solid var(--border);

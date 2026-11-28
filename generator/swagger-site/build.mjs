@@ -73,14 +73,32 @@ ${header('./')}
 <main class="container">
   <section class="hero">
     <h1>API reference</h1>
-    <p>Read-only references for released Penvire Lab HTTP and event contracts. Every release keeps its own page and downloadable contract files.</p>
+    <p>Browse released Penvire Lab HTTP and event contracts and the current authorization model.</p>
   </section>
   ${releaseSection('HTTP APIs · OpenAPI', releases.filter(({ kind }) => kind === 'openapi'))}
   ${releaseSection('Events · AsyncAPI', releases.filter(({ kind }) => kind === 'asyncapi'))}
+  <section>
+    <h2>Authorization · OpenFGA</h2>
+    <p>Browse the shared model from <code>main</code> and try sample grants.</p>
+    <a class="button primary" href="./fga/">Open reference</a>
+  </section>
 </main>
 <footer class="site-footer"><div class="container"><a href="https://github.com/Penvire/penvire-lab-contracts">penvire-lab-contracts</a> · a learning project, never in production</div></footer>
 </html>
 `;
+}
+
+function buildFgaReference(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  for (const file of ['fga.mod', 'identity.fga', 'platform.fga.yaml']) {
+    fs.copyFileSync(path.join('fga', file), path.join(dir, file));
+  }
+  const page = fs.readFileSync(here('fga.html'), 'utf8');
+  const model = fs.readFileSync(path.join(dir, 'identity.fga'), 'utf8')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+  fs.writeFileSync(path.join(dir, 'index.html'), page
+    .replace('{{header}}', header('../'))
+    .replace('{{model}}', () => model));
 }
 
 function releaseHeader({ kind, service, version }) {
@@ -116,5 +134,6 @@ for (const release of releases) {
     fs.writeFileSync(path.join(dir, 'index.html'), versionPage(template, release));
   }
 }
+buildFgaReference(path.join(output, 'fga'));
 fs.writeFileSync(path.join(output, 'index.html'), indexPage(releases));
 print(`Built ${releases.length} contract release pages in ${path.relative('.', output)}`);
