@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFGA · Penvire Lab</title>
+<script src="../assets/theme.js"></script>
+<link rel="stylesheet" href="../assets/site.css">
+{{header}}
+<main class="container fga-reference">
+  <section class="hero">
+    <h1>Authorization · OpenFGA</h1>
+    <p>Shared authorization model from <code>main</code>. Identity checks platform account permissions on <code>platform:global</code>.</p>
+    <div class="service-actions">
+      <a class="button" href="./fga.mod" download>Model manifest</a>
+      <a class="button" href="./identity.fga" download>Identity module</a>
+      <a class="button" href="./platform.fga.yaml" download>Sample grants and tests</a>
+    </div>
+  </section>
+  <section>
+    <h2>Try the model locally</h2>
+    <ol>
+      <li>Save all three files above in the same directory.</li>
+      <li>Run <code>devenv up</code> in the backend checkout.</li>
+      <li>From the download directory, import the sample store with the OpenFGA CLI:
+        <pre><code>fga store import --api-url http://127.0.0.1:8090 --file platform.fga.yaml</code></pre>
+      </li>
+      <li>Open the <a href="http://localhost:3001/">local Playground</a> and select <strong>Platform account administration</strong>.</li>
+      <li>Check <code>account_read</code> on <code>platform:global</code>. Expect Allow for <code>user:reader</code> and Deny for <code>client:alice</code>.</li>
+    </ol>
+    <p>To run the full suite without starting a server, run <code>fga model test --tests platform.fga.yaml</code>.</p>
+  </section>
+  <section>
+    <h2>Identity module</h2>
+    <pre><code>{{model}}</code></pre>
+  </section>
+</main>
+</html>

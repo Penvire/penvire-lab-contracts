@@ -67,6 +67,9 @@
         }
       ]
     },
+    "fga": {
+      "component": "fga-model"
+    },
     "asyncapi/identity": {
       "component": "asyncapi-identity",
       "extra-files": [

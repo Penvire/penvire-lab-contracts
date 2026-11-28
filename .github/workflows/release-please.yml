@@ -37,8 +37,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # One job per released document: <service>-client and <service>-openapi for a service
-  # document, <service>-events for an AsyncAPI document.
+  # One job per released component: HTTP contracts and clients, events, or the shared FGA model.
   publish:
     name: Publish ${{ matrix.path }}
     needs: release-please
@@ -73,13 +72,19 @@ jobs:
           ORG_GRADLE_PROJECT_forgejoUsername: ${{ vars.FORGEJO_USER }}
           ORG_GRADLE_PROJECT_forgejoPassword: ${{ secrets.FORGEJO_TOKEN }}
         run: |
-          # openapi/<service> publishes :<service>-client, asyncapi/<service> :<service>-events.
           case "$RELEASE_PATH" in
             openapi/*) kind=openapi; artifact="${RELEASE_PATH#openapi/}-client" ;;
             asyncapi/*) kind=asyncapi; artifact="${RELEASE_PATH#asyncapi/}-events" ;;
+            fga) artifact=fga-model ;;
             *) echo "Unknown release path: $RELEASE_PATH" >&2; exit 1 ;;
           esac
-          version=$(awk '/^info:/ { inInfo = 1 } inInfo && /^  version:/ { print $2; exit }' "$RELEASE_PATH/$kind.yaml")
+          if [[ "$RELEASE_PATH" == fga ]]; then
+            version=$(<fga/version.txt)
+            task=publishFgaModelPublicationToForgejoRepository
+          else
+            version=$(awk '/^info:/ { inInfo = 1 } inInfo && /^  version:/ { print $2; exit }' "$RELEASE_PATH/$kind.yaml")
+            task=":${artifact}:publishAllPublicationsToForgejoRepository"
+          fi
           registry=$(sed -n 's/^forgejoMavenUrl=//p' gradle.properties)
           pom="$registry/dev/penvire/lab/${artifact}/${version}/${artifact}-${version}.pom"
           # Packages are public: a rerun skips versions that are already uploaded.
@@ -87,7 +92,7 @@ jobs:
             echo "${artifact} ${version} is already published."
             exit 0
           fi
-          ./gradlew ":${artifact}:publishAllPublicationsToForgejoRepository" --console=plain
+          ./gradlew "$task" --console=plain
 
   # Rebuilds the merged public API from every service's last release and publishes it
   # when it differs from the last published one (ADR 0001).
@@ -170,9 +175,10 @@ jobs:
 
   contract-pages:
     needs: [release-please, publish, public-api]
+    # The OpenFGA reference tracks main and does not require a package release.
     if: >-
       !cancelled() && needs.release-please.result == 'success' &&
-      needs.publish.result == 'success' &&
+      (needs.publish.result == 'success' || needs.publish.result == 'skipped') &&
       (needs.public-api.result == 'success' || needs.public-api.result == 'skipped')
     permissions:
       contents: read
