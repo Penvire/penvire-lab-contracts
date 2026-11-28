@@ -99,9 +99,40 @@ tasks.check {
     dependsOn(lintContracts, lintEvents, testContractTools, packageApiClient)
 }
 
-// Uploads an already built and versioned public-api.yaml; the release workflow builds it first.
+val fgaModelFile = layout.buildDirectory.file("fga/model.json")
+val compileFgaModel = tasks.register("compileFgaModel") {
+    description = "Compiles the shared OpenFGA model to JSON."
+    group = "build"
+    inputs.files(fileTree("fga") { include("**/*.fga", "fga.mod", "cli.sh") })
+    val targetFile = fgaModelFile
+    outputs.file(targetFile)
+    val modelJson = providers.exec {
+        commandLine("bash", "fga/cli.sh", "model", "transform", "--file", "fga.mod", "--output-format", "json")
+    }.standardOutput.asText
+    doLast {
+        val target = targetFile.get().asFile
+        target.parentFile.mkdirs()
+        target.writeText(modelJson.get())
+    }
+}
+
 publishing {
     publications {
+        create<MavenPublication>("fgaModel") {
+            groupId = "dev.penvire.lab"
+            artifactId = "fga-model"
+            version = providers.fileContents(layout.projectDirectory.file("fga/version.txt")).asText.get().trim()
+            artifact(fgaModelFile) {
+                extension = "json"
+                builtBy(compileFgaModel)
+            }
+            pom {
+                name = "Penvire Lab OpenFGA model"
+                description = "Compiled shared authorization model for Penvire Lab services."
+                licenses { license { name = "Apache-2.0"; url = "https://www.apache.org/licenses/LICENSE-2.0" } }
+            }
+        }
+        // The release workflow builds the versioned public-api.yaml before upload.
         create<MavenPublication>("publicApi") {
             groupId = "dev.penvire.lab"
             artifactId = "public-api"
