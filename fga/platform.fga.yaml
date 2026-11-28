@@ -1,0 +1,89 @@
+name: Platform account administration
+model_file: fga.mod
+tuples:
+  - { user: 'user:alice', relation: admin, object: 'platform:global' }
+  - { user: 'user:reader', relation: account_read, object: 'platform:global' }
+  - { user: 'user:recovery', relation: account_start_recovery, object: 'platform:global' }
+  - { user: 'user:status', relation: account_set_status, object: 'platform:global' }
+  - { user: 'user:editor', relation: account_edit_details, object: 'platform:global' }
+  - { user: 'user:deleter', relation: account_delete, object: 'platform:global' }
+  - { user: 'user:operator', relation: account_read, object: 'platform:global' }
+  - { user: 'user:operator', relation: account_start_recovery, object: 'platform:global' }
+  - { user: 'user:operator', relation: account_set_status, object: 'platform:global' }
+  - { user: 'user:operator', relation: account_edit_details, object: 'platform:global' }
+  - { user: 'user:operator', relation: account_delete, object: 'platform:global' }
+tests:
+  - name: Only the admin can manage grants, even when an operator has every account permission
+    check:
+      - users: ['user:alice', 'user:operator']
+        object: platform:global
+        assertions:
+          account_read: true
+          account_start_recovery: true
+          account_set_status: true
+          account_edit_details: true
+          account_delete: true
+      - user: user:alice
+        object: platform:global
+        assertions: { manage_platform_grants: true }
+      - user: user:operator
+        object: platform:global
+        assertions: { manage_platform_grants: false }
+  - name: Each individual grant authorizes exactly one action
+    check:
+      - user: user:reader
+        object: platform:global
+        assertions:
+          account_read: true
+          account_start_recovery: false
+          account_set_status: false
+          account_edit_details: false
+          account_delete: false
+          manage_platform_grants: false
+      - user: user:recovery
+        object: platform:global
+        assertions:
+          account_read: false
+          account_start_recovery: true
+          account_set_status: false
+          account_edit_details: false
+          account_delete: false
+          manage_platform_grants: false
+      - user: user:status
+        object: platform:global
+        assertions:
+          account_read: false
+          account_start_recovery: false
+          account_set_status: true
+          account_edit_details: false
+          account_delete: false
+          manage_platform_grants: false
+      - user: user:editor
+        object: platform:global
+        assertions:
+          account_read: false
+          account_start_recovery: false
+          account_set_status: false
+          account_edit_details: true
+          account_delete: false
+          manage_platform_grants: false
+      - user: user:deleter
+        object: platform:global
+        assertions:
+          account_read: false
+          account_start_recovery: false
+          account_set_status: false
+          account_edit_details: false
+          account_delete: true
+          manage_platform_grants: false
+  - name: Neither an ungranted human nor a client sharing the admin identifier has access
+    check:
+      - users: ['user:stranger', 'client:alice']
+        object: platform:global
+        assertions:
+          account_read: false
+          account_start_recovery: false
+          account_set_status: false
+          account_edit_details: false
+          account_delete: false
+          manage_platform_grants: false

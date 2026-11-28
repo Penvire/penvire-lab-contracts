@@ -1,0 +1,21 @@
+module identity
+
+type user
+type client
+
+# Identity always checks platform:global. Only humans may receive grants.
+type platform
+  relations
+    define admin: [user]
+    # Lookup, list, and search Identity accounts. Excludes tenant data, credentials, recovery secrets, and sessions.
+    define account_read: [user] or admin
+    # Initiate recovery; only the account holder chooses the replacement password.
+    define account_start_recovery: [user] or admin
+    # Enable or disable an account globally.
+    define account_set_status: [user] or admin
+    # Edit profile fields only. Excludes sign-in and recovery identifiers, credentials, status, and grants.
+    define account_edit_details: [user] or admin
+    # Delete an Identity account globally.
+    define account_delete: [user] or admin
+    # Identity must check this before granting or revoking any platform role or permission.
+    define manage_platform_grants: admin
